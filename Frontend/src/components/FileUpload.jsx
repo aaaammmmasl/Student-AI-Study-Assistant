@@ -1,9 +1,13 @@
 function FileUpload({ setFile }) {
   const handleFileChange = (e) => {
-    setFile(e.target.files[0]);
+    setFile(e.target.files[0] || null);
   };
 
-  return <input type="file" onChange={handleFileChange} />;
+  return (
+    <div>
+      <input type="file" accept=".pdf" onChange={handleFileChange} />
+    </div>
+  );
 }
 
 export default FileUpload;
