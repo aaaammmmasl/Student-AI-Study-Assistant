@@ -1,7 +1,23 @@
 exports.summarizeText = (req, res) => {
-  const { text } = req.body;
+  try {
+    const { prompt, text } = req.body || {};
 
-  res.json({
-    summary: "Summarycn: " + text.slice(0, 50),
-  });
+    if (!prompt && !text) {
+      return res.status(400).json({
+        error: "prompt or text is required",
+      });
+    }
+
+    const finalText = text || "";
+
+    res.json({
+      summary: `
+      Prompt: ${prompt || "default prompt"}
+
+      Summary: ${finalText.slice(0, 200)}
+      `,
+    });
+  } catch (err) {
+    res.status(500).json({ error: "server error" });
+  }
 };

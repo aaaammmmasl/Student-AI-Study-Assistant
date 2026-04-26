@@ -1,18 +1,30 @@
-const multer = require("multer");
-const pdfParse = require("pdf-parse");
 const fs = require("fs");
+const multer = require("multer");
+const { PDFParse } = require("pdf-parse");
 
-const upload = multer({ dest: "uploads/" });
+// تخزين مؤقت للملفات
+const upload = multer({
+  dest: "uploads/",
+});
 
+// middleware
 exports.uploadMiddleware = upload.single("file");
 
-exports.extractText = async (req) => {
-  const file = req.file;
+// استخراج النص من PDF
+exports.extractText = async (file) => {
+  if (!file) {
+    throw new Error("No file uploaded");
+  }
 
   const dataBuffer = fs.readFileSync(file.path);
-  const pdfData = await pdfParse(dataBuffer);
 
+  // إنشاء instance
+  const parser = new PDFParse({ data: dataBuffer });
+
+  const result = await parser.getText();
+
+  // حذف الملف بعد القراءة
   fs.unlinkSync(file.path);
 
-  return pdfData.text;
+  return result.text;
 };
