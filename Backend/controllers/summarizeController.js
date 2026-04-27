@@ -1,23 +1,31 @@
-exports.summarizeText = (req, res) => {
+const geminiService = require("../services/geminiService");
+
+exports.summarizeText = async (req, res) => {
   try {
     const { prompt, text } = req.body || {};
 
-    if (!prompt && !text) {
+    if (!text && !prompt) {
       return res.status(400).json({
         error: "prompt or text is required",
       });
     }
 
-    const finalText = text || "";
+    const finalPrompt =
+      prompt || "Summarize this text clearly in bullet points.";
 
-    res.json({
-      summary: `
-      Prompt: ${prompt || "default prompt"}
+    const summary = await geminiService.generateSummary(
+      finalPrompt,
+      text || "",
+    );
 
-      Summary: ${finalText.slice(0, 200)}
-      `,
+    return res.json({
+      summary,
     });
-  } catch (err) {
-    res.status(500).json({ error: "server error" });
+  } catch (error) {
+    console.log("Summarize Error:", error);
+
+    return res.status(500).json({
+      error: "Failed to summarize text",
+    });
   }
 };

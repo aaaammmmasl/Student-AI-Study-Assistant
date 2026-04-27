@@ -1,12 +1,10 @@
 const pdfService = require("../services/pdfService");
+const geminiService = require("../services/geminiService");
 
 exports.uploadPDF = async (req, res) => {
   try {
     const { prompt, text } = req.body;
     const file = req.file;
-
-    console.log("FILE:", file);
-    console.log("BODY:", req.body);
 
     if (!file) {
       return res.status(400).json({
@@ -35,16 +33,18 @@ ${cleanText}
 ${text || ""}
     `.trim();
 
-    return res.json({
-      summary: `
-Prompt: ${prompt || "default prompt"}
+    const finalPrompt =
+      prompt ||
+      "Summarize this PDF clearly in bullet points and highlight important ideas.";
 
-PDF Summary:
-${finalText.slice(0, 300)}
-      `,
+    // إرسال للذكاء الاصطناعي
+    const summary = await geminiService.generateSummary(finalPrompt, finalText);
+
+    return res.json({
+      summary,
     });
   } catch (err) {
-    console.log("ERROR DETAILS:", err);
+    console.log("PDF AI Error:", err);
 
     return res.status(500).json({
       error: "PDF processing error",

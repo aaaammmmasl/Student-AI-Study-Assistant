@@ -3,6 +3,7 @@ import TextInput from "./components/TextInput";
 import FileUpload from "./components/FileUpload";
 import Actions from "./components/Actions";
 import Result from "./components/Result";
+import History from "./components/History";
 
 import "./App.css";
 
@@ -12,6 +13,7 @@ function App() {
   const [file, setFile] = useState(null);
   const [result, setResult] = useState("");
   const [loading, setLoading] = useState(false);
+  const [history, setHistory] = useState([]);
 
   const handleSummarize = async () => {
     if (!prompt.trim() && !text.trim() && !file) {
@@ -23,6 +25,8 @@ function App() {
     setResult("");
 
     try {
+      let data;
+
       if (file) {
         const formData = new FormData();
         formData.append("file", file);
@@ -34,8 +38,7 @@ function App() {
           body: formData,
         });
 
-        const data = await res.json();
-        setResult(data.summary || data.text || "تمت العملية بنجاح");
+        data = await res.json();
       } else {
         const res = await fetch("http://localhost:5000/api/summarize", {
           method: "POST",
@@ -48,9 +51,24 @@ function App() {
           }),
         });
 
-        const data = await res.json();
-        setResult(data.summary || "تمت العملية بنجاح");
+        data = await res.json();
       }
+
+      const finalResult = data.summary || "تمت العملية بنجاح";
+
+      setResult(finalResult);
+
+      // 🔥 هنا أهم جزء: إضافة history
+      setHistory((prev) => [
+        {
+          id: Date.now(),
+          prompt,
+          text: text || "PDF input",
+          result: finalResult,
+          type: file ? "pdf" : "text",
+        },
+        ...prev,
+      ]);
     } catch (error) {
       console.log(error);
       setResult("cannot connect with server");
@@ -68,7 +86,7 @@ function App() {
       <h2>AI Tool</h2>
 
       <textarea
-        placeholder="اكتب prompt مثل: لخص في نقاط، اشرح ببساطة، اصنع ملخصًا أكاديميًا..."
+        placeholder="اكتب prompt مثل: لخص في نقاط..."
         value={prompt}
         onChange={(e) => setPrompt(e.target.value)}
         rows={4}
@@ -89,6 +107,9 @@ function App() {
       <div style={{ marginTop: "12px" }}>
         <Actions onSummarize={handleSummarize} onQuiz={handleQuiz} />
       </div>
+
+      {/* 🔥 History component */}
+      <History history={history} setResult={setResult} />
 
       <div style={{ marginTop: "20px" }}>
         {loading ? <p>Loading...</p> : <Result result={result} />}
