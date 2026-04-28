@@ -2,30 +2,18 @@ function Result({ result }) {
   if (!result) return null;
 
   return (
-    <div style={styles.container}>
-      <div style={styles.card}>{result}</div>
+    <div className="rounded-3xl border border-white/10 bg-zinc-900 p-6 shadow-2xl shadow-black/20">
+      <div className="mb-4 flex items-center justify-between">
+        <h3 className="text-sm font-semibold uppercase tracking-[0.2em] text-zinc-400">
+          Result
+        </h3>
+      </div>
+
+      <div className="whitespace-pre-wrap text-left text-sm leading-8 text-zinc-100">
+        {result}
+      </div>
     </div>
   );
 }
-
-const styles = {
-  container: {
-    display: "flex",
-    justifyContent: "flex-start",
-    marginTop: "20px",
-  },
-  card: {
-    maxWidth: "850px",
-    width: "100%",
-    padding: "20px",
-    background: "",
-    borderRadius: "12px",
-    textAlign: "left",
-    whiteSpace: "pre-wrap",
-    lineHeight: "1.7",
-    boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-    fontSize: "15px",
-  },
-};
 
 export default Result;

@@ -30,11 +30,16 @@ ${text}
         headers: {
           Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
           "Content-Type": "application/json",
+
+          // 🔥 مهم جدًا لـ OpenRouter
+          "HTTP-Referer": "http://localhost:5000",
+          "X-Title": "StudyPilot",
         },
-      },
+      }
     );
 
     return response.data.choices[0].message.content;
+
   } catch (error) {
     console.log("OpenRouter Error:", error.response?.data || error.message);
     throw new Error("Failed to generate summary");
