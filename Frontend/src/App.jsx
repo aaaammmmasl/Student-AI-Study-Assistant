@@ -8,38 +8,66 @@ import {
   Brain,
 } from "lucide-react";
 
-import History from "./components/History";
-
 function App() {
-  const [messages, setMessages] = useState([
-    {
-      id: 1,
-      role: "assistant",
-      content:
-        "Hello, I’m StudyPilot. Ask me anything about your notes or PDFs.",
-    },
-  ]);
+  const initialGreeting = {
+    id: 1,
+    role: "assistant",
+    content: "Hello, I'm StudyPilot. Ask me anything about your notes or PDFs.",
+  };
 
+  const [messages, setMessages] = useState([initialGreeting]);
   const [input, setInput] = useState("");
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [history, setHistory] = useState([]);
+
+  const [sessions, setSessions] = useState([]);
+  const [currentSessionId, setCurrentSessionId] = useState(null);
 
   const fileRef = useRef(null);
+
+  const createNewSession = (startMessages = [initialGreeting]) => {
+    const newSession = {
+      id: Date.now(),
+      title: "New Session",
+      messages: startMessages,
+    };
+
+    setSessions((prev) => [newSession, ...prev]);
+    setCurrentSessionId(newSession.id);
+    setMessages(startMessages);
+    return newSession.id;
+  };
+
+  const syncSessionMessages = (sessionId, nextMessages) => {
+    setSessions((prev) =>
+      prev.map((session) =>
+        session.id === sessionId
+          ? {
+              ...session,
+              messages: nextMessages,
+              title:
+                session.title === "New Session" && nextMessages.length > 1
+                  ? nextMessages[1]?.content?.slice(0, 28) || session.title
+                  : session.title,
+            }
+          : session,
+      ),
+    );
+  };
 
   const handleSend = async () => {
     if (!input.trim() && !file) return;
 
     const userText = input.trim() || "Uploaded a file.";
+    const sessionId = currentSessionId || createNewSession(messages);
 
-    const updatedMessages = [
-      ...messages,
-      {
-        id: Date.now(),
-        role: "user",
-        content: file ? `${userText}\n📎 ${file.name}` : userText,
-      },
-    ];
+    const userMessage = {
+      id: Date.now(),
+      role: "user",
+      content: file ? `${userText}\n📎 ${file.name}` : userText,
+    };
+
+    const updatedMessages = [...messages, userMessage];
 
     setMessages(updatedMessages);
     setInput("");
@@ -87,33 +115,27 @@ function App() {
       ];
 
       setMessages(finalMessages);
-
-      setHistory((prev) => [
-        {
-          id: Date.now(),
-          prompt: userText,
-          result: reply,
-          type: file ? "pdf" : "chat",
-        },
-        ...prev,
-      ]);
-
+      syncSessionMessages(sessionId, finalMessages);
       setFile(null);
     } catch (error) {
       console.log(error);
 
-      setMessages((prev) => [
-        ...prev,
+      const errorMessages = [
+        ...updatedMessages,
         {
-          id: Date.now(),
+          id: Date.now() + 1,
           role: "assistant",
           content: "Cannot connect with server.",
         },
-      ]);
+      ];
+
+      setMessages(errorMessages);
+      syncSessionMessages(sessionId, errorMessages);
     }
 
     setLoading(false);
   };
+
   const handleQuiz = () => {
     const lastAssistant = [...messages]
       .reverse()
@@ -132,15 +154,22 @@ function App() {
   };
 
   const handleNewChat = () => {
-    setMessages([
-      {
-        id: 1,
-        role: "assistant",
-        content:
-          "Hello, I’m StudyPilot. Ask me anything about your notes or PDFs.",
-      },
-    ]);
+    const newSession = {
+      id: Date.now(),
+      title: "New Session",
+      messages: [initialGreeting],
+    };
 
+    setSessions((prev) => [newSession, ...prev]);
+    setCurrentSessionId(newSession.id);
+    setMessages([initialGreeting]);
+    setInput("");
+    setFile(null);
+  };
+
+  const loadSession = (session) => {
+    setCurrentSessionId(session.id);
+    setMessages(session.messages);
     setInput("");
     setFile(null);
   };
@@ -155,8 +184,7 @@ function App() {
   return (
     <div className="h-screen w-screen overflow-hidden bg-zinc-950 text-white">
       <div className="flex h-full w-full">
-        {/* Sidebar */}
-        <aside className="hidden md:flex h-full w-80 shrink-0 flex-col overflow-y-auto border-r border-white/10 bg-zinc-900">
+        <aside className="hidden h-full w-80 shrink-0 flex-col overflow-y-auto border-r border-white/10 bg-zinc-900 md:flex">
           <div className="border-b border-white/10 px-6 py-6">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-lime-400 text-black">
@@ -186,23 +214,34 @@ function App() {
           </div>
 
           <div className="flex-1 overflow-y-auto px-3 pb-4">
-            <History
-              history={history}
-              setResult={(value) =>
-                setMessages([
-                  {
-                    id: Date.now(),
-                    role: "assistant",
-                    content: value,
-                  },
-                ])
-              }
-            />
+            {sessions.length === 0 ? (
+              <div className="rounded-3xl border border-dashed border-white/10 bg-zinc-950/50 px-4 py-6 text-sm text-zinc-500">
+                No sessions yet.
+              </div>
+            ) : (
+              sessions.map((session) => (
+                <button
+                  key={session.id}
+                  onClick={() => loadSession(session)}
+                  className={`mb-3 w-full rounded-3xl border px-4 py-4 text-left transition ${
+                    currentSessionId === session.id
+                      ? "border-lime-400/30 bg-lime-400/10"
+                      : "border-white/10 bg-zinc-950/50 hover:border-lime-400/20 hover:bg-zinc-900/80"
+                  }`}
+                >
+                  <div className="text-sm font-medium text-zinc-100">
+                    {session.title}
+                  </div>
+                  <div className="mt-1 line-clamp-2 text-xs leading-5 text-zinc-400">
+                    {session.messages?.[1]?.content || "Conversation session"}
+                  </div>
+                </button>
+              ))
+            )}
           </div>
         </aside>
 
-        {/* Main */}
-        <main className="flex h-full flex-1 flex-col overflow-y-auto">
+        <main className="flex h-full min-w-0 flex-1 flex-col overflow-y-auto">
           <header className="border-b border-white/10 px-8 py-5">
             <h2 className="text-xl font-semibold">StudyPilot Chat</h2>
             <p className="mt-1 text-sm text-zinc-400">
@@ -212,7 +251,6 @@ function App() {
 
           <div className="flex-1 px-4 py-8 sm:px-8">
             <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
-              {/* Messages */}
               <div className="flex flex-col gap-4">
                 {messages.map((msg) => (
                   <div
@@ -242,7 +280,6 @@ function App() {
                 )}
               </div>
 
-              {/* Input */}
               <div className="rounded-3xl border border-white/10 bg-zinc-900 p-4">
                 {file && (
                   <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-zinc-800 px-3 py-2 text-xs text-zinc-300">
