@@ -7,6 +7,9 @@ import {
   Paperclip,
   Brain,
 } from "lucide-react";
+// MARKDOWN
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 function App() {
   const initialGreeting = {
@@ -17,7 +20,7 @@ function App() {
 
   const [messages, setMessages] = useState([initialGreeting]);
   const [input, setInput] = useState("");
-  const [file, setFile] = useState(null);
+  const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(false);
 
   const [sessions, setSessions] = useState([]);
@@ -56,7 +59,7 @@ function App() {
   };
 
   const handleSend = async () => {
-    if (!input.trim() && !file) return;
+    if (!input.trim() && files.length === 0) return;
 
     const userText = input.trim() || "Uploaded a file.";
     const sessionId = currentSessionId || createNewSession(messages);
@@ -64,7 +67,10 @@ function App() {
     const userMessage = {
       id: Date.now(),
       role: "user",
-      content: file ? `${userText}\n📎 ${file.name}` : userText,
+      content:
+        files.length > 0
+          ? `${userText}\n📎 ${files.map((file) => file.name).join(", ")}`
+          : userText,
     };
 
     const updatedMessages = [...messages, userMessage];
@@ -76,9 +82,11 @@ function App() {
     try {
       let data;
 
-      if (file) {
+      if (files.length > 0) {
         const formData = new FormData();
-        formData.append("file", file);
+        files.forEach((file) => {
+          formData.append("files", file);
+        });
         formData.append("message", userText);
         formData.append("messages", JSON.stringify(updatedMessages));
 
@@ -116,7 +124,12 @@ function App() {
 
       setMessages(finalMessages);
       syncSessionMessages(sessionId, finalMessages);
-      setFile(null);
+
+      setFiles([]);
+
+      if (fileRef.current) {
+        fileRef.current.value = "";
+      }
     } catch (error) {
       console.log(error);
 
@@ -131,6 +144,12 @@ function App() {
 
       setMessages(errorMessages);
       syncSessionMessages(sessionId, errorMessages);
+
+      setFiles([]);
+
+      if (fileRef.current) {
+        fileRef.current.value = "";
+      }
     }
 
     setLoading(false);
@@ -164,14 +183,14 @@ function App() {
     setCurrentSessionId(newSession.id);
     setMessages([initialGreeting]);
     setInput("");
-    setFile(null);
+    setFiles([]);
   };
 
   const loadSession = (session) => {
     setCurrentSessionId(session.id);
     setMessages(session.messages);
     setInput("");
-    setFile(null);
+    setFiles([]);
   };
 
   const handleEnter = (e) => {
@@ -260,13 +279,72 @@ function App() {
                     }`}
                   >
                     <div
-                      className={`max-w-[85%] rounded-3xl px-5 py-4 text-sm leading-7 ${
+                      className={`max-w-[min(85%,46rem)] rounded-[24px] border px-6 py-5 shadow-sm ${
                         msg.role === "user"
-                          ? "bg-lime-400 text-black"
-                          : "border border-white/10 bg-zinc-900 text-zinc-100"
+                          ? "ml-auto border-lime-300/40 bg-lime-400 text-zinc-950"
+                          : "mr-auto border-white/10 bg-zinc-900 text-zinc-100"
                       }`}
                     >
-                      {msg.content}
+                      {msg.role === "user" ? (
+                        <div className="text-[15px] leading-7 whitespace-pre-wrap font-medium">
+                          {msg.content}
+                        </div>
+                      ) : (
+                        <div className="text-[15px] leading-6 text-zinc-200 space-y-3">
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            components={{
+                              p: ({ children }) => (
+                                <p className="leading-6 text-zinc-200 m-0">
+                                  {children}
+                                </p>
+                              ),
+                              h1: ({ children }) => (
+                                <h1 className="text-xl font-semibold text-white mt-3 mb-1">
+                                  {children}
+                                </h1>
+                              ),
+                              h2: ({ children }) => (
+                                <h2 className="text-lg font-semibold text-white mt-3 mb-1 border-b border-white/10 pb-1">
+                                  {children}
+                                </h2>
+                              ),
+                              h3: ({ children }) => (
+                                <h3 className="text-base font-medium text-white mt-2 mb-1">
+                                  {children}
+                                </h3>
+                              ),
+                              ul: ({ children }) => (
+                                <ul className="list-disc pl-5 space-y-1">
+                                  {children}
+                                </ul>
+                              ),
+                              ol: ({ children }) => (
+                                <ol className="list-decimal pl-5 space-y-1">
+                                  {children}
+                                </ol>
+                              ),
+                              li: ({ children }) => (
+                                <li className="leading-6 text-zinc-200">
+                                  {children}
+                                </li>
+                              ),
+                              blockquote: ({ children }) => (
+                                <blockquote className="border-l-4 border-lime-400/40 pl-3 text-zinc-300 my-2">
+                                  {children}
+                                </blockquote>
+                              ),
+                              code: ({ children }) => (
+                                <code className="bg-white/10 px-1.5 py-0.5 rounded text-lime-300">
+                                  {children}
+                                </code>
+                              ),
+                            }}
+                          >
+                            {msg.content}
+                          </ReactMarkdown>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -281,16 +359,27 @@ function App() {
               </div>
 
               <div className="rounded-3xl border border-white/10 bg-zinc-900 p-4">
-                {file && (
-                  <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-zinc-800 px-3 py-2 text-xs text-zinc-300">
-                    <Paperclip size={14} />
-                    {file.name}
-                    <button
-                      onClick={() => setFile(null)}
-                      className="ml-1 text-zinc-400 hover:text-white"
-                    >
-                      ✕
-                    </button>
+                {files.length > 0 && (
+                  <div className="mb-3 flex flex-wrap gap-2">
+                    {files.map((file, index) => (
+                      <div
+                        key={index}
+                        className="inline-flex items-center gap-2 rounded-full bg-zinc-800 px-3 py-2 text-xs text-zinc-300"
+                      >
+                        <Paperclip size={14} />
+                        {file.name}
+                        <button
+                          onClick={() =>
+                            setFiles((prev) =>
+                              prev.filter((_, i) => i !== index),
+                            )
+                          }
+                          className="ml-1 text-zinc-400 hover:text-white"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
                   </div>
                 )}
 
@@ -309,8 +398,15 @@ function App() {
                       ref={fileRef}
                       type="file"
                       accept=".pdf"
+                      multiple
                       hidden
-                      onChange={(e) => setFile(e.target.files[0] || null)}
+                      onClick={(e) => {
+                        e.target.value = null;
+                      }}
+                      onChange={(e) => {
+                        const selectedFiles = Array.from(e.target.files || []);
+                        setFiles((prev) => [...prev, ...selectedFiles]);
+                      }}
                     />
 
                     <button
