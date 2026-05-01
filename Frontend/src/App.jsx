@@ -1,15 +1,10 @@
 import { useState, useRef } from "react";
-import {
-  Sparkles,
-  Plus,
-  History as HistoryIcon,
-  Send,
-  Paperclip,
-  Brain,
-} from "lucide-react";
-// MARKDOWN
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+
+import Sidebar from "./components/Sidebar";
+import ChatHeader from "./components/ChatHeader";
+
+import ChatMessages from "./components/chat/ChatMessages";
+import ChatInput from "./components/chat/ChatInput";
 
 function App() {
   const initialGreeting = {
@@ -203,236 +198,30 @@ function App() {
   return (
     <div className="h-screen w-screen overflow-hidden bg-zinc-950 text-white">
       <div className="flex h-full w-full">
-        <aside className="hidden h-full w-80 shrink-0 flex-col overflow-y-auto border-r border-white/10 bg-zinc-900 md:flex">
-          <div className="border-b border-white/10 px-6 py-6">
-            <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-lime-400 text-black">
-                <Sparkles size={18} />
-              </div>
-
-              <div>
-                <h1 className="text-lg font-semibold">StudyPilot</h1>
-                <p className="text-xs text-zinc-400">AI Study Assistant</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="border-b border-white/10 p-4">
-            <button
-              onClick={handleNewChat}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-zinc-800 px-4 py-3 text-sm font-medium hover:bg-zinc-700"
-            >
-              <Plus size={16} />
-              New Session
-            </button>
-          </div>
-
-          <div className="flex items-center gap-2 px-4 pb-2 pt-4 text-sm text-zinc-400">
-            <HistoryIcon size={16} />
-            Recent Activity
-          </div>
-
-          <div className="flex-1 overflow-y-auto px-3 pb-4">
-            {sessions.length === 0 ? (
-              <div className="rounded-3xl border border-dashed border-white/10 bg-zinc-950/50 px-4 py-6 text-sm text-zinc-500">
-                No sessions yet.
-              </div>
-            ) : (
-              sessions.map((session) => (
-                <button
-                  key={session.id}
-                  onClick={() => loadSession(session)}
-                  className={`mb-3 w-full rounded-3xl border px-4 py-4 text-left transition ${
-                    currentSessionId === session.id
-                      ? "border-lime-400/30 bg-lime-400/10"
-                      : "border-white/10 bg-zinc-950/50 hover:border-lime-400/20 hover:bg-zinc-900/80"
-                  }`}
-                >
-                  <div className="text-sm font-medium text-zinc-100">
-                    {session.title}
-                  </div>
-                  <div className="mt-1 line-clamp-2 text-xs leading-5 text-zinc-400">
-                    {session.messages?.[1]?.content || "Conversation session"}
-                  </div>
-                </button>
-              ))
-            )}
-          </div>
-        </aside>
+        <Sidebar
+          sessions={sessions}
+          currentSessionId={currentSessionId}
+          handleNewChat={handleNewChat}
+          loadSession={loadSession}
+        />
 
         <main className="flex h-full min-w-0 flex-1 flex-col overflow-y-auto">
-          <header className="border-b border-white/10 px-8 py-5">
-            <h2 className="text-xl font-semibold">StudyPilot Chat</h2>
-            <p className="mt-1 text-sm text-zinc-400">
-              Summarize notes, analyze PDFs, and prepare quizzes.
-            </p>
-          </header>
+          <ChatHeader />
 
           <div className="flex-1 px-4 py-8 sm:px-8">
             <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
-              <div className="flex flex-col gap-4">
-                {messages.map((msg) => (
-                  <div
-                    key={msg.id}
-                    className={`flex ${
-                      msg.role === "user" ? "justify-end" : "justify-start"
-                    }`}
-                  >
-                    <div
-                      className={`max-w-[min(85%,46rem)] rounded-[24px] border px-6 py-5 shadow-sm ${
-                        msg.role === "user"
-                          ? "ml-auto border-lime-300/40 bg-lime-400 text-zinc-950"
-                          : "mr-auto border-white/10 bg-zinc-900 text-zinc-100"
-                      }`}
-                    >
-                      {msg.role === "user" ? (
-                        <div className="text-[15px] leading-7 whitespace-pre-wrap font-medium">
-                          {msg.content}
-                        </div>
-                      ) : (
-                        <div className="text-[15px] leading-6 text-zinc-200 space-y-3">
-                          <ReactMarkdown
-                            remarkPlugins={[remarkGfm]}
-                            components={{
-                              p: ({ children }) => (
-                                <p className="leading-6 text-zinc-200 m-0">
-                                  {children}
-                                </p>
-                              ),
-                              h1: ({ children }) => (
-                                <h1 className="text-xl font-semibold text-white mt-3 mb-1">
-                                  {children}
-                                </h1>
-                              ),
-                              h2: ({ children }) => (
-                                <h2 className="text-lg font-semibold text-white mt-3 mb-1 border-b border-white/10 pb-1">
-                                  {children}
-                                </h2>
-                              ),
-                              h3: ({ children }) => (
-                                <h3 className="text-base font-medium text-white mt-2 mb-1">
-                                  {children}
-                                </h3>
-                              ),
-                              ul: ({ children }) => (
-                                <ul className="list-disc pl-5 space-y-1">
-                                  {children}
-                                </ul>
-                              ),
-                              ol: ({ children }) => (
-                                <ol className="list-decimal pl-5 space-y-1">
-                                  {children}
-                                </ol>
-                              ),
-                              li: ({ children }) => (
-                                <li className="leading-6 text-zinc-200">
-                                  {children}
-                                </li>
-                              ),
-                              blockquote: ({ children }) => (
-                                <blockquote className="border-l-4 border-lime-400/40 pl-3 text-zinc-300 my-2">
-                                  {children}
-                                </blockquote>
-                              ),
-                              code: ({ children }) => (
-                                <code className="bg-white/10 px-1.5 py-0.5 rounded text-lime-300">
-                                  {children}
-                                </code>
-                              ),
-                            }}
-                          >
-                            {msg.content}
-                          </ReactMarkdown>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
+              <ChatMessages messages={messages} loading={loading} />
 
-                {loading && (
-                  <div className="flex justify-start">
-                    <div className="rounded-3xl border border-white/10 bg-zinc-900 px-5 py-4 text-sm text-zinc-400">
-                      Thinking...
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="rounded-3xl border border-white/10 bg-zinc-900 p-4">
-                {files.length > 0 && (
-                  <div className="mb-3 flex flex-wrap gap-2">
-                    {files.map((file, index) => (
-                      <div
-                        key={index}
-                        className="inline-flex items-center gap-2 rounded-full bg-zinc-800 px-3 py-2 text-xs text-zinc-300"
-                      >
-                        <Paperclip size={14} />
-                        {file.name}
-                        <button
-                          onClick={() =>
-                            setFiles((prev) =>
-                              prev.filter((_, i) => i !== index),
-                            )
-                          }
-                          className="ml-1 text-zinc-400 hover:text-white"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                <textarea
-                  rows={3}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={handleEnter}
-                  placeholder="Ask StudyPilot anything..."
-                  className="w-full resize-none bg-transparent text-sm outline-none placeholder:text-zinc-500"
-                />
-
-                <div className="mt-4 flex items-center justify-between">
-                  <div className="flex gap-2">
-                    <input
-                      ref={fileRef}
-                      type="file"
-                      accept=".pdf"
-                      multiple
-                      hidden
-                      onClick={(e) => {
-                        e.target.value = null;
-                      }}
-                      onChange={(e) => {
-                        const selectedFiles = Array.from(e.target.files || []);
-                        setFiles((prev) => [...prev, ...selectedFiles]);
-                      }}
-                    />
-
-                    <button
-                      onClick={() => fileRef.current.click()}
-                      className="rounded-xl bg-zinc-800 p-3 hover:bg-zinc-700"
-                    >
-                      <Paperclip size={18} />
-                    </button>
-
-                    <button
-                      onClick={handleQuiz}
-                      className="rounded-xl bg-zinc-800 p-3 hover:bg-zinc-700"
-                    >
-                      <Brain size={18} />
-                    </button>
-                  </div>
-
-                  <button
-                    onClick={handleSend}
-                    className="inline-flex items-center gap-2 rounded-2xl bg-lime-400 px-5 py-3 text-sm font-semibold text-black hover:bg-lime-300"
-                  >
-                    <Send size={16} />
-                    Send
-                  </button>
-                </div>
-              </div>
+              <ChatInput
+                input={input}
+                setInput={setInput}
+                files={files}
+                setFiles={setFiles}
+                fileRef={fileRef}
+                handleEnter={handleEnter}
+                handleSend={handleSend}
+                handleQuiz={handleQuiz}
+              />
             </div>
           </div>
         </main>
