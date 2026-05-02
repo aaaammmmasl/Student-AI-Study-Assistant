@@ -32,7 +32,20 @@ export function useChatStore() {
 
     return newSession.id;
   };
+  //  create new session from the button
+  const handleNewChat = () => {
+    const newSession = {
+      id: Date.now(),
+      title: "New Session",
+      messages: [initialGreeting],
+    };
 
+    setSessions((prev) => [newSession, ...prev]);
+    setCurrentSessionId(newSession.id);
+    setMessages([initialGreeting]);
+    setInput("");
+    setFiles([]);
+  };
   // sync history
   const syncSession = (id, msgs) => {
     setSessions((prev) =>
@@ -49,6 +62,14 @@ export function useChatStore() {
           : s,
       ),
     );
+  };
+  // choose between sessions
+  
+  const loadSession = (session) => {
+    setCurrentSessionId(session.id);
+    setMessages(session.messages);
+    setInput("");
+    setFiles([]);
   };
 
   // send message
@@ -118,6 +139,8 @@ export function useChatStore() {
 
     // actions
     handleSend,
+    handleNewChat,
+    loadSession,
     createNewSession,
     syncSession,
     setSessions,
