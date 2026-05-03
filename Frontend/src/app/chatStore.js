@@ -27,7 +27,7 @@ export function useChatStore() {
 
   const createSession = (startMessages = [initialGreeting]) => {
     const session = {
-      id: Date.now(),
+      id: crypto.randomUUID(),
       title: "New Session",
       messages: startMessages,
     };
@@ -61,14 +61,14 @@ export function useChatStore() {
   const buildUserMessage = (text) => {
     if (files.length === 0) {
       return {
-        id: Date.now(),
+        id: crypto.randomUUID(),
         role: "user",
         content: text,
       };
     }
 
     return {
-      id: Date.now(),
+      id: crypto.randomUUID(),
       role: "user",
       content: `${text}\n📎 ${files.map((f) => f.name).join(", ")}`,
     };
@@ -119,10 +119,13 @@ export function useChatStore() {
 
       const replyText = data.reply || "No response.";
 
-      // 👇 هنا السحر: typing effect
-      await streamAssistantMessage(replyText, sessionId);
+      //  typing effect
+      await streamAssistantMessage(replyText);
 
-      syncSession(sessionId, updated);
+      setMessages((prev) => {
+        syncSession(sessionId, prev);
+        return prev;
+      });
     } catch (err) {
       console.log(err);
 
@@ -163,26 +166,90 @@ export function useChatStore() {
     }
   };
 
-  const handleQuiz = () => {
-    const last = [...messages].reverse().find((m) => m.role === "assistant");
-
-    if (!last) return;
-
-    const quizMessage = {
-      id: Date.now(),
-      role: "assistant",
-      content: "📚 Quiz feature coming soon based on this context.",
-    };
-
-    setMessages((prev) => [...prev, quizMessage]);
-  };
-
   const handleEnter = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
     }
   };
+  // ========================
+  //  QUIZ
+  // ========================
+
+  const [quiz, setQuiz] = useState(null);
+  const [quizLoading, setQuizLoading] = useState(false);
+  const [quizResult, setQuizResult] = useState(null);
+
+  const generateQuizRequest = async ({
+    context,
+    questionCount,
+    optionCount,
+  }) => {
+    const res = await fetch("http://localhost:5000/api/quiz", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        context,
+        questionCount,
+        optionCount,
+      }),
+    });
+
+    return res.json();
+  };
+
+  const handleGenerateQuiz = async ({
+    questionCount = 10,
+    optionCount = 3,
+  } = {}) => {
+    let context = input?.trim();
+
+    if (!context) {
+      const lastAssistant = [...messages]
+        .reverse()
+        .find((msg) => msg.role === "assistant");
+
+      context = lastAssistant?.content;
+    }
+
+    //  3. fallback → آخر محادثة
+    if (!context) {
+      context = messages
+        .slice(-6)
+        .map((m) => m.content)
+        .join("\n");
+    }
+
+    if (!context || !context.trim()) return;
+
+    setQuizLoading(true);
+    setQuizResult(null);
+
+    try {
+      const data = await generateQuizRequest({
+        context,
+        questionCount,
+        optionCount,
+      });
+
+      setQuiz({
+        id: crypto.randomUUID(),
+        questions: Array.isArray(data.quiz) ? data.quiz : data.quiz?.quiz || [],
+      });
+    } catch (error) {
+      console.log(error);
+      setQuiz(null);
+    }
+
+    setQuizLoading(false);
+  };
+
+  const handleQuiz = () => {
+    handleGenerateQuiz();
+  };
+
   // ========================
   //  RENAME & EDITE SESSION
   // ========================
@@ -232,6 +299,13 @@ export function useChatStore() {
 
     // refs
     fileRef,
+
+    //  quiz
+    quiz,
+    quizLoading,
+    quizResult,
+    setQuizResult,
+    handleGenerateQuiz,
 
     // actions
     renameSession,

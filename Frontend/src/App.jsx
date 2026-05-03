@@ -6,17 +6,24 @@ import ChatInput from "./components/chat/ChatInput";
 import { useChatStore } from "./app/chatStore";
 import { useEffect, useRef, useState } from "react";
 
+import QuizModal from "./components/quiz/QuizModal";
+
 function App() {
   const chat = useChatStore();
   const bottomRef = useRef(null);
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isQuizOpen, setIsQuizOpen] = useState(false);
 
+  const handleOpenQuiz = () => {
+    setIsQuizOpen(true);
+    chat.handleGenerateQuiz();
+  };
   // Auto scroll to bottom whenever messages change
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chat.messages, chat.loading]);
-
   return (
     <div className="h-screen w-screen overflow-hidden bg-zinc-950 text-white">
       <div className="flex h-full w-full">
@@ -43,10 +50,18 @@ function App() {
           {/* Input fixed*/}
           <div className="shrink-0 border-t border-white/10 bg-zinc-950/80 backdrop-blur">
             <div className="mx-auto w-full max-w-5xl px-4 py-4 sm:px-8">
-              <ChatInput {...chat} />
+              <ChatInput {...chat} handleQuiz={handleOpenQuiz} />
             </div>
           </div>
         </main>
+        <QuizModal
+          key={chat.quiz?.id || "empty"}
+          isOpen={isQuizOpen}
+          onClose={() => setIsQuizOpen(false)}
+          quiz={chat.quiz?.questions}
+          loading={chat.quizLoading}
+          handleGenerateQuiz={chat.handleGenerateQuiz}
+        />
       </div>
     </div>
   );
