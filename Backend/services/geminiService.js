@@ -1,5 +1,3 @@
-
-
 const axios = require("axios");
 
 exports.generateSummary = async (message, messages = []) => {
@@ -59,5 +57,3 @@ RULES:
     throw new Error("Failed to generate AI response");
   }
 };
-
-
