@@ -96,13 +96,15 @@ export function useChatStore() {
   };
 
   const handleSend = async () => {
-    if (!input.trim() && files.length === 0) return;
+    const hasFiles = files.length > 0;
+    const messageText = input.trim() || (!hasFiles ? getReferenceText() : "");
+    const displayText = input.trim() || "Uploaded file.";
 
-    const text = input.trim() || "Uploaded file.";
+    if (!messageText && !hasFiles) return;
+
     const sessionId = currentSessionId || createSession(messages);
 
-    const userMessage = buildUserMessage(text);
-
+    const userMessage = buildUserMessage(displayText);
     const updated = [...messages, userMessage];
 
     setMessages(updated);
@@ -110,16 +112,14 @@ export function useChatStore() {
     resetInputState();
 
     try {
-      // نحصل على الرد كامل أولاً
       const data = await sendChatRequest({
-        message: text,
+        message: messageText,
         messages: updated,
         files,
       });
 
       const replyText = data.reply || "No response.";
 
-      //  typing effect
       await streamAssistantMessage(replyText);
 
       setMessages((prev) => {
@@ -143,7 +143,6 @@ export function useChatStore() {
 
     setLoading(false);
   };
-
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
   const streamAssistantMessage = async (fullText) => {
@@ -172,82 +171,107 @@ export function useChatStore() {
       handleSend();
     }
   };
+
   // ========================
   //  QUIZ
   // ========================
+
+  const GREETING_TEXT = initialGreeting.content;
+
+  const getLastAssistantText = () => {
+    return (
+      [...messages]
+        .reverse()
+        .find(
+          (msg) =>
+            msg.role === "assistant" &&
+            msg.content?.trim() &&
+            msg.content.trim() !== GREETING_TEXT,
+        )
+        ?.content?.trim() || ""
+    );
+  };
+
+  const getLastUserText = () => {
+    return (
+      [...messages]
+        .reverse()
+        .find((msg) => msg.role === "user")
+        ?.content?.trim() || ""
+    );
+  };
+
+  const getReferenceText = () => {
+    return input.trim() || getLastUserText() || getLastAssistantText();
+  };
 
   const [quiz, setQuiz] = useState(null);
   const [quizLoading, setQuizLoading] = useState(false);
   const [quizResult, setQuizResult] = useState(null);
 
-  const generateQuizRequest = async ({
-    context,
-    questionCount,
-    optionCount,
-  }) => {
-    const res = await fetch("http://localhost:5000/api/quiz", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        context,
-        questionCount,
-        optionCount,
-      }),
-    });
-
-    return res.json();
-  };
-
   const handleGenerateQuiz = async ({
     questionCount = 10,
     optionCount = 3,
   } = {}) => {
-    let context = input?.trim();
-
-    if (!context) {
-      const lastAssistant = [...messages]
-        .reverse()
-        .find((msg) => msg.role === "assistant");
-
-      context = lastAssistant?.content;
-    }
-
-    //  3. fallback → آخر محادثة
-    if (!context) {
-      context = messages
-        .slice(-6)
-        .map((m) => m.content)
-        .join("\n");
-    }
-
-    if (!context || !context.trim()) return;
-
     setQuizLoading(true);
     setQuizResult(null);
 
     try {
-      const data = await generateQuizRequest({
-        context,
-        questionCount,
-        optionCount,
+      const hasFiles = files.length > 0;
+      const context = input.trim() || (!hasFiles ? getReferenceText() : "");
+
+      const formData = new FormData();
+      formData.append("context", context);
+      formData.append("questionCount", String(questionCount));
+      formData.append("optionCount", String(optionCount));
+
+      files.forEach((file) => {
+        formData.append("files", file);
       });
+
+      const res = await fetch("http://localhost:5000/api/quiz", {
+        method: "POST",
+        body: formData,
+      });
+
+      const data = await res.json();
+
+      console.log("QUIZ RESPONSE:", data);
+      console.log("QUIZ CONTEXT:", context);
+
+      const questions =
+        data.quiz?.quiz?.questions ||
+        data.quiz?.quiz ||
+        data.quiz?.questions ||
+        data.questions ||
+        [];
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to generate quiz");
+      }
+
+      if (!questions.length) {
+        throw new Error("Quiz returned empty questions");
+      }
 
       setQuiz({
         id: crypto.randomUUID(),
-        questions: Array.isArray(data.quiz) ? data.quiz : data.quiz?.quiz || [],
+        questions,
       });
     } catch (error) {
-      console.log(error);
+      console.error("Quiz generation error:", error);
       setQuiz(null);
+    } finally {
+      setQuizLoading(false);
     }
-
-    setQuizLoading(false);
   };
 
   const handleQuiz = () => {
     handleGenerateQuiz();
+  };
+
+  const clearQuiz = () => {
+    setQuiz(null);
   };
 
   // ========================
@@ -306,6 +330,7 @@ export function useChatStore() {
     quizResult,
     setQuizResult,
     handleGenerateQuiz,
+    clearQuiz,
 
     // actions
     renameSession,

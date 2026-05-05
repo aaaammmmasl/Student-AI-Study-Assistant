@@ -1,10 +1,11 @@
 const express = require("express");
 const router = express.Router();
 
-const chatController = require("../controllers/chatController");
-const pdfService = require("../services/pdfService");
+const multer = require("multer");
+const upload = multer({ storage: multer.memoryStorage() });
 
-// multiple files middleware
-router.post("/chat", pdfService.uploadMiddleware, chatController.handleChat);
+const chatController = require("../controllers/chatController");
+
+router.post("/chat", upload.array("files"), chatController.handleChat);
 
 module.exports = router;

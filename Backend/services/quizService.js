@@ -13,7 +13,8 @@ Generate a quiz in STRICT JSON only.
 Do not include markdown, explanations outside JSON, or extra text.
 
 Rules:
-- Create exactly ${questionCount} questions unless the context is too short.
+- ALWAYS create exactly ${questionCount} questions.
+- If context is short, generate simpler questions.
 - Each question must have exactly ${optionCount} options unless impossible.
 - Each question must have:
   - id

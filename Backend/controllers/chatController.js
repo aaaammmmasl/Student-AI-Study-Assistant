@@ -4,20 +4,12 @@ const aiService = require("../services/geminiService");
 exports.handleChat = async (req, res) => {
   try {
     const { message, messages } = req.body;
-
-    // file واحد
-    const files = req.files;
+    const files = Array.isArray(req.files) ? req.files : [];
 
     let finalText = message || "";
 
-    // إذا وُجدت ملفات PDF
-    if (files && files.length > 0) {
-      let pdfText = "";
-
-      for (const file of files) {
-        const text = await pdfService.extractText(file);
-        pdfText += `\n\n--- FILE: ${file.originalname} ---\n${text}`;
-      }
+    if (files.length > 0) {
+      const pdfText = await pdfService.extractText(files);
 
       finalText = `
 User Message:
@@ -28,7 +20,6 @@ ${pdfText}
       `;
     }
 
-    // تحويل history إن وُجد
     let conversation = [];
 
     if (messages) {

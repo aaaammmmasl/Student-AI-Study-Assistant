@@ -14,6 +14,7 @@ app.use(express.json());
 app.use("/api", chatRoute);
 app.use("/api", quizRoute);
 
+
 app.listen(5000, () => {
   console.log("Server running on port 5000");
 });

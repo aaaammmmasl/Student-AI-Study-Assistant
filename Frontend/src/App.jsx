@@ -17,7 +17,6 @@ function App() {
 
   const handleOpenQuiz = () => {
     setIsQuizOpen(true);
-    chat.handleGenerateQuiz();
   };
   // Auto scroll to bottom whenever messages change
 
@@ -57,7 +56,10 @@ function App() {
         <QuizModal
           key={chat.quiz?.id || "empty"}
           isOpen={isQuizOpen}
-          onClose={() => setIsQuizOpen(false)}
+          onClose={() => {
+            setIsQuizOpen(false);
+            chat.clearQuiz();
+          }}
           quiz={chat.quiz?.questions}
           loading={chat.quizLoading}
           handleGenerateQuiz={chat.handleGenerateQuiz}

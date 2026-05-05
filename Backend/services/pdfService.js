@@ -1,23 +1,30 @@
-const fs = require("fs");
-const multer = require("multer");
 const pdfModule = require("pdf-parse");
 const pdf = pdfModule.default || pdfModule;
 
-const upload = multer({
-  dest: "uploads/",
-});
+exports.extractText = async (files) => {
+  if (!files) {
+    throw new Error("No files provided");
+  }
 
-exports.uploadMiddleware = upload.array("files");
-
-exports.extractText = async (file) => {
-  if (!file) throw new Error("No file uploaded");
-
-  const dataBuffer = fs.readFileSync(file.path);
+  //  ضمان أنها Array
+  const fileArray = Array.isArray(files) ? files : [files];
 
   try {
-    const result = await pdf(dataBuffer);
-    return result.text;
-  } finally {
-    fs.unlinkSync(file.path);
+    let fullText = "";
+
+    for (const file of fileArray) {
+      if (!file.buffer) continue;
+
+      const result = await pdf(file.buffer);
+
+      if (result.text) {
+        fullText += result.text + "\n\n";
+      }
+    }
+
+    return fullText.trim();
+  } catch (error) {
+    console.log("PDF Extract Error:", error);
+    throw new Error("Failed to extract PDF text");
   }
 };
