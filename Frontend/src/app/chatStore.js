@@ -202,7 +202,7 @@ export function useChatStore() {
   };
 
   const getReferenceText = () => {
-    return input.trim() || getLastUserText() || getLastAssistantText();
+    return input.trim()  || getLastAssistantText() || getLastUserText();
   };
 
   const [quiz, setQuiz] = useState(null);

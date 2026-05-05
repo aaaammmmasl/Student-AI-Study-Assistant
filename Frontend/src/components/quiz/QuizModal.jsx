@@ -11,6 +11,7 @@ function QuizModal({ isOpen, onClose, quiz, loading, handleGenerateQuiz }) {
 
   useEffect(() => {
     if (!isOpen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setAnswers({});
       setSubmitted(false);
       setScore(0);
@@ -20,6 +21,7 @@ function QuizModal({ isOpen, onClose, quiz, loading, handleGenerateQuiz }) {
   // 🔥 مهم: إعادة reset لكل quiz جديد
   useEffect(() => {
     if (quiz) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setAnswers({});
       setSubmitted(false);
       setScore(0);
