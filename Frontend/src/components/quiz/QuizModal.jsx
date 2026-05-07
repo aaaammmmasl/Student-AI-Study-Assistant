@@ -5,7 +5,7 @@ function QuizModal({ isOpen, onClose, quiz, loading, handleGenerateQuiz }) {
   const [submitted, setSubmitted] = useState(false);
   const [score, setScore] = useState(0);
 
-  // إعدادات التوليد
+  // regenerate
   const [questionCount, setQuestionCount] = useState(5);
   const [optionCount, setOptionCount] = useState(3);
 
@@ -18,7 +18,6 @@ function QuizModal({ isOpen, onClose, quiz, loading, handleGenerateQuiz }) {
     }
   }, [isOpen]);
 
-  // 🔥 مهم: إعادة reset لكل quiz جديد
   useEffect(() => {
     if (quiz) {
       // eslint-disable-next-line react-hooks/set-state-in-effect

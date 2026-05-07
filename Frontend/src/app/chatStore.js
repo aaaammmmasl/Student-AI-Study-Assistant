@@ -25,20 +25,6 @@ export function useChatStore() {
   //  CORE LOGIC
   // ========================
 
-  const createSession = (startMessages = [initialGreeting]) => {
-    const session = {
-      id: crypto.randomUUID(),
-      title: "New Session",
-      messages: startMessages,
-    };
-
-    setSessions((prev) => [session, ...prev]);
-    setCurrentSessionId(session.id);
-    setMessages(startMessages);
-
-    return session.id;
-  };
-
   const syncSession = (sessionId, nextMessages) => {
     setSessions((prev) =>
       prev.map((s) => {
@@ -78,6 +64,20 @@ export function useChatStore() {
     setInput("");
     setFiles([]);
     if (fileRef.current) fileRef.current.value = "";
+  };
+
+  const createSession = (startMessages = [initialGreeting]) => {
+    const session = {
+      id: crypto.randomUUID(),
+      title: "New Session",
+      messages: startMessages,
+    };
+
+    setSessions((prev) => [session, ...prev]);
+    setCurrentSessionId(session.id);
+    setMessages(startMessages);
+
+    return session.id;
   };
 
   // ========================
@@ -202,7 +202,7 @@ export function useChatStore() {
   };
 
   const getReferenceText = () => {
-    return input.trim()  || getLastAssistantText() || getLastUserText();
+    return input.trim() || getLastAssistantText() || getLastUserText();
   };
 
   const [quiz, setQuiz] = useState(null);
@@ -236,15 +236,11 @@ export function useChatStore() {
 
       const data = await res.json();
 
+      // CONSOLE
       console.log("QUIZ RESPONSE:", data);
       console.log("QUIZ CONTEXT:", context);
 
-      const questions =
-        data.quiz?.quiz?.questions ||
-        data.quiz?.quiz ||
-        data.quiz?.questions ||
-        data.questions ||
-        [];
+      const questions = data.quiz?.questions || [];
 
       if (!res.ok) {
         throw new Error(data.error || "Failed to generate quiz");

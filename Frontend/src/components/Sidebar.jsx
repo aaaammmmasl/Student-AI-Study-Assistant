@@ -39,6 +39,7 @@ function Sidebar({
   }, [sessions, search]);
 
   const startEdit = (session, e) => {
+    // disable clicking while editing
     e.stopPropagation();
     setEditingId(session.id);
     setDraftTitle(session.title);
@@ -140,7 +141,7 @@ function Sidebar({
         {/* Sessions */}
         <div className="flex-1 overflow-y-auto px-3 pb-4">
           {filteredSessions.length === 0 ? (
-            <div className="rounded-3xl border border-dashed border-white/10 bg-zinc-900/50 px-4 py-6 text-center text-sm text-zinc-500">
+            <div className="rounded-3xl border border-dashed bsetSearorder-white/10 bg-zinc-900/50 px-4 py-6 text-center text-sm text-zinc-500">
               No chats found.
             </div>
           ) : (

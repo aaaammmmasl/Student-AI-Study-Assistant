@@ -3,7 +3,7 @@ const quizService = require("../services/quizService");
 
 exports.handleQuiz = async (req, res) => {
   try {
-    const context = (req.body.context || "").trim();
+    const context = (req.body?.context || "").trim();
     const questionCount = Number(req.body.questionCount) || 10;
     const optionCount = Number(req.body.optionCount) || 3;
     const files = Array.isArray(req.files) ? req.files : [];
@@ -16,7 +16,6 @@ exports.handleQuiz = async (req, res) => {
       if (pdfText && pdfText.trim()) {
         finalContext = pdfText.trim();
       }
-      
     }
 
     // إذا لا يوجد شيء
@@ -33,6 +32,10 @@ exports.handleQuiz = async (req, res) => {
     });
 
     return res.json({ quiz });
+    // CONSOLE
+    console.log("BODY:", req.body);
+    console.log("FILES:", req.files);
+    console.log("FINAL CONTEXT:", finalContext);
   } catch (error) {
     console.log("Quiz Controller Error:", error);
     return res.status(500).json({

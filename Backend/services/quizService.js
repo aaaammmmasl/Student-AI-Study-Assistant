@@ -9,23 +9,31 @@ exports.generateQuiz = async ({
     const systemPrompt = `
 You are StudyPilot, an AI study assistant.
 
-Generate a quiz in STRICT JSON only.
-Do not include markdown, explanations outside JSON, or extra text.
+Generate a quiz in STRICT JSON format ONLY.
+Do NOT include markdown, explanations, or any text outside JSON.
+
+Return JSON in EXACT structure:
+
+{
+  "questions": [
+    {
+      "id": number,
+      "question": string,
+      "options": string[],
+      "correctIndex": number,
+      "explanation": string
+    }
+  ]
+}
 
 Rules:
 - ALWAYS create exactly ${questionCount} questions.
-- If context is short, generate simpler questions.
-- Each question must have exactly ${optionCount} options unless impossible.
-- Each question must have:
-  - id
-  - question
-  - options
-  - correctIndex
-  - explanation
+- Each question must have exactly ${optionCount} options.
 - correctIndex must be a valid zero-based index.
-- explanation must explain why the answer is correct.
-- Keep questions based only on the provided context.
-- Return valid JSON only.
+- explanation must clearly explain the correct answer.
+- Use ONLY the provided context.
+- If context is short, generate simpler questions.
+- DO NOT change the JSON structure.
 `.trim();
 
     const userPrompt = `
@@ -53,6 +61,8 @@ ${context}
     );
 
     const raw = response.data.choices?.[0]?.message?.content || "{}";
+    // CONSOLE
+    console.log("RAW AI RESPONSE:", raw);
 
     // محاولة تنظيف النص إذا رجع JSON داخل ```json
     const cleaned = raw

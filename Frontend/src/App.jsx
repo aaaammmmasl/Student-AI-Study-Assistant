@@ -36,7 +36,7 @@ function App() {
           {/* Header fixed*/}
           <ChatHeader toggleSidebar={() => setIsSidebarOpen((prev) => !prev)} />
 
-          {/* Messages area (scrollable فقط هنا) */}
+          {/* Messages area (scrollable  */}
           <div className="flex-1 overflow-y-auto px-4 py-8 sm:px-8">
             <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
               <ChatMessages messages={chat.messages} loading={chat.loading} />

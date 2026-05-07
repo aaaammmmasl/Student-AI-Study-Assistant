@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { Copy, Check } from "lucide-react";
 
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import oneDark from "react-syntax-highlighter/dist/esm/styles/prism/one-dark";
+
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -16,6 +19,11 @@ function MessageBubble({ msg }) {
       setCopied(false);
     }, 2000);
   };
+
+  const formattedContent = msg.content
+    .replace(/(#{1,6}\s)/g, "\n$1")
+    .replace(/-\s\*\*/g, "\n- **")
+    .replace(/\n{3,}/g, "\n\n");
 
   const isUser = msg.role === "user";
 
@@ -75,20 +83,72 @@ function MessageBubble({ msg }) {
                       {children}
                     </strong>
                   ),
-                  code: ({ inline, children }) =>
-                    inline ? (
-                      <code className="rounded-md bg-white/10 px-1.5 py-0.5 text-lime-300">
+                  code({ inline, className, children }) {
+                    const match = /language-(\w+)/.exec(className || "");
+
+                    if (inline) {
+                      return (
+                        <code className="rounded-md bg-white/10 px-1.5 py-0.5 text-lime-300">
+                          {children}
+                        </code>
+                      );
+                    }
+
+                    return (
+                      <div className="my-2 max-w-full overflow-x-auto rounded-2xl border border-white/10">
+                        <SyntaxHighlighter
+                          language={match?.[1] || "text"}
+                          style={oneDark}
+                          PreTag="div"
+                          customStyle={{
+                            margin: 0,
+                            background: "#09090b",
+                            padding: "14px 16px",
+                            fontSize: "13px",
+                            lineHeight: "1.6",
+                            overflowX: "auto",
+                            maxWidth: "100%",
+                          }}
+                          codeTagProps={{
+                            style: {
+                              background: "transparent",
+                              whiteSpace: "pre",
+                            },
+                          }}
+                        >
+                          {String(children).replace(/\n$/, "")}
+                        </SyntaxHighlighter>
+                      </div>
+                    );
+                  },
+
+                  table: ({ children }) => (
+                    <div className="overflow-x-auto">
+                      <table className="w-full border-collapse text-sm">
                         {children}
-                      </code>
-                    ) : (
-                      <pre className="my-3 overflow-x-auto rounded-2xl border border-white/10 bg-zinc-950 p-4">
-                        <code className="text-lime-300">{children}</code>
-                      </pre>
-                    ),
+                      </table>
+                    </div>
+                  ),
+
+                  thead: ({ children }) => (
+                    <thead className="bg-zinc-800">{children}</thead>
+                  ),
+
+                  th: ({ children }) => (
+                    <th className="border border-white/10 px-4 py-2 text-left text-white">
+                      {children}
+                    </th>
+                  ),
+
+                  td: ({ children }) => (
+                    <td className="border border-white/10 px-4 py-2 text-zinc-300">
+                      {children}
+                    </td>
+                  ),
                   hr: () => <hr className="my-4 border-white/10" />,
                 }}
               >
-                {msg.content}
+                {formattedContent}
               </ReactMarkdown>
             </div>
           )}
