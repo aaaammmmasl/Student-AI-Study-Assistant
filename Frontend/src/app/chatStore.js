@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { sendChatRequest } from "../services/chatApi";
 
 const initialGreeting = {
@@ -7,42 +7,81 @@ const initialGreeting = {
   content: "Hello, I'm StudyPilot. Ask me anything.",
 };
 
+function getStoredSessions() {
+  if (typeof window === "undefined") return [];
+  try {
+    const saved = localStorage.getItem("studypilot_sessions");
+    return saved ? JSON.parse(saved) : [];
+  } catch {
+    return [];
+  }
+}
+
+function getStoredCurrentSessionId() {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem("studypilot_current_session");
+}
+
 export function useChatStore() {
-  // ========================
-  //  STATE
-  // ========================
-  const [messages, setMessages] = useState([initialGreeting]);
+  const storedSessions = getStoredSessions();
+  const storedCurrentId = getStoredCurrentSessionId();
+
+  const activeSession =
+    storedSessions.find((s) => s.id === storedCurrentId) ||
+    storedSessions[0] ||
+    null;
+
+  const [messages, setMessages] = useState(
+    activeSession?.messages || [initialGreeting],
+  );
   const [input, setInput] = useState("");
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const [sessions, setSessions] = useState([]);
-  const [currentSessionId, setCurrentSessionId] = useState(null);
+  const [sessions, setSessions] = useState(storedSessions);
+  const [currentSessionId, setCurrentSessionId] = useState(
+    activeSession?.id || null,
+  );
 
   const fileRef = useRef(null);
+  useEffect(() => {
+    localStorage.setItem("studypilot_sessions", JSON.stringify(sessions));
+  }, [sessions]);
+
+  useEffect(() => {
+    if (currentSessionId) {
+      localStorage.setItem("studypilot_current_session", currentSessionId);
+    } else {
+      localStorage.removeItem("studypilot_current_session");
+    }
+  }, [currentSessionId]);
+  // ========================
+  // SYNC CURRENT SESSION
+  // ========================
+
+  useEffect(() => {
+    if (!currentSessionId) return;
+
+    setSessions((prev) =>
+      prev.map((session) => {
+        if (session.id !== currentSessionId) return session;
+
+        return {
+          ...session,
+          messages,
+
+          title:
+            session.title === "New Session" && messages.length > 1
+              ? messages[1]?.content?.slice(0, 30)
+              : session.title,
+        };
+      }),
+    );
+  }, [messages, currentSessionId]);
 
   // ========================
   //  CORE LOGIC
   // ========================
-
-  const syncSession = (sessionId, nextMessages) => {
-    setSessions((prev) =>
-      prev.map((s) => {
-        if (s.id !== sessionId) return s;
-
-        return {
-          ...s,
-          messages: nextMessages,
-
-          // عنوان ذكي للجلسة
-          title:
-            s.title === "New Session" && nextMessages.length > 1
-              ? nextMessages[1]?.content?.slice(0, 30)
-              : s.title,
-        };
-      }),
-    );
-  };
 
   const buildUserMessage = (text) => {
     if (files.length === 0) {
@@ -73,13 +112,16 @@ export function useChatStore() {
       messages: startMessages,
     };
 
-    setSessions((prev) => [session, ...prev]);
+    setSessions((prev) => {
+      const updated = [session, ...prev];
+      return updated;
+    });
+
     setCurrentSessionId(session.id);
     setMessages(startMessages);
 
     return session.id;
   };
-
   // ========================
   //  ACTIONS UI
   // ========================
@@ -121,11 +163,6 @@ export function useChatStore() {
       const replyText = data.reply || "No response.";
 
       await streamAssistantMessage(replyText);
-
-      setMessages((prev) => {
-        syncSession(sessionId, prev);
-        return prev;
-      });
     } catch (err) {
       console.log(err);
 
@@ -138,7 +175,6 @@ export function useChatStore() {
       const finalMessages = [...updated, errorMessage];
 
       setMessages(finalMessages);
-      syncSession(sessionId, finalMessages);
     }
 
     setLoading(false);
@@ -294,6 +330,8 @@ export function useChatStore() {
         setCurrentSessionId(filtered[0].id);
         setMessages(filtered[0].messages);
       } else {
+        localStorage.removeItem("studypilot_current_session");
+
         setCurrentSessionId(null);
         setMessages([initialGreeting]);
       }

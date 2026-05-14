@@ -1,5 +1,5 @@
 const pdfService = require("../services/pdfService");
-const aiService = require("../services/geminiService");
+const aiService = require("../services/aiService");
 
 exports.handleChat = async (req, res) => {
   try {
