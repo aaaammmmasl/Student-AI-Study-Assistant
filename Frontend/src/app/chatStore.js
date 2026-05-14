@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from "react";
 import { sendChatRequest } from "../services/chatApi";
 
+const API_URL = import.meta.env.VITE_API_URL;
+
 const initialGreeting = {
   id: 1,
   role: "assistant",
@@ -265,7 +267,7 @@ export function useChatStore() {
         formData.append("files", file);
       });
 
-      const res = await fetch("http://localhost:5000/api/quiz", {
+      const res = await fetch(`${API_URL}/api/quiz`, {
         method: "POST",
         body: formData,
       });
