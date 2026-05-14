@@ -1,3 +1,5 @@
+const API_URL = import.meta.env.VITE_API_URL;
+
 export async function sendChatRequest({ message, messages, files }) {
   const hasFiles = files && files.length > 0;
 
@@ -11,7 +13,7 @@ export async function sendChatRequest({ message, messages, files }) {
     formData.append("message", message);
     formData.append("messages", JSON.stringify(messages));
 
-    const res = await fetch("http://localhost:5000/api/chat", {
+    const res = await fetch(`${API_URL}/api/chat`, {
       method: "POST",
       body: formData,
     });
@@ -19,7 +21,7 @@ export async function sendChatRequest({ message, messages, files }) {
     return res.json();
   }
 
-  const res = await fetch("http://localhost:5000/api/chat", {
+  const res = await fetch(`${API_URL}/api/chat`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
