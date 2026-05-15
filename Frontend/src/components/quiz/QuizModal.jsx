@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
 
+import Loader from "../UI/Thinking";
+
+
 function QuizModal({ isOpen, onClose, quiz, loading, handleGenerateQuiz }) {
   const [answers, setAnswers] = useState({});
   const [submitted, setSubmitted] = useState(false);
@@ -122,7 +125,7 @@ function QuizModal({ isOpen, onClose, quiz, loading, handleGenerateQuiz }) {
 
             {loading && (
               <div className="mt-6 text-sm text-zinc-400">
-                Generating quiz...
+                <Loader/>
               </div>
             )}
 
