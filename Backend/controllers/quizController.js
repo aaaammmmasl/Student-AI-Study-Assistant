@@ -33,9 +33,6 @@ exports.handleQuiz = async (req, res) => {
 
     return res.json({ quiz });
     // CONSOLE
-    console.log("BODY:", req.body);
-    console.log("FILES:", req.files);
-    console.log("FINAL CONTEXT:", finalContext);
   } catch (error) {
     console.log("Quiz Controller Error:", error);
     return res.status(500).json({

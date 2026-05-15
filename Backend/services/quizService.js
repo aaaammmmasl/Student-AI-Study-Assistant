@@ -64,14 +64,31 @@ ${context}
     // CONSOLE
     console.log("RAW AI RESPONSE:", raw);
 
-    // محاولة تنظيف النص إذا رجع JSON داخل ```json
     const cleaned = raw
       .replace(/^```json\s*/i, "")
       .replace(/^```\s*/i, "")
       .replace(/```$/i, "")
       .trim();
 
-    return JSON.parse(cleaned);
+    //  extract JSON safely
+    const match = cleaned.match(/\{[\s\S]*\}/);
+    const jsonString = match ? match[0] : null;
+
+    if (!jsonString) {
+      console.log("No JSON found in AI response:", cleaned);
+      throw new Error("No JSON found");
+    }
+
+    let parsed;
+
+    try {
+      parsed = JSON.parse(jsonString);
+    } catch (e) {
+      console.log("Invalid JSON after extraction:", jsonString);
+      throw new Error("AI returned invalid JSON");
+    }
+
+    return parsed;
   } catch (error) {
     console.log("Quiz Error:", error.response?.data || error.message);
     throw new Error("Failed to generate quiz");
