@@ -49,6 +49,42 @@ export function useChatStore() {
   useEffect(() => {
     localStorage.setItem("studypilot_sessions", JSON.stringify(sessions));
   }, [sessions]);
+  // ========================
+  // DB
+  // ========================
+  useEffect(() => {
+    const fetchSessions = async () => {
+      try {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/sessions`);
+
+        const data = await res.json();
+        setSessions(data);
+      } catch (err) {
+        console.log("Failed to load sessions", err);
+      }
+    };
+
+    fetchSessions();
+  }, []);
+
+  useEffect(() => {
+    const fetchSessions = async () => {
+      try {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/sessions`);
+        const data = await res.json();
+
+        setSessions(data);
+
+        if (data.length > 0 && !currentSessionId) {
+          setCurrentSessionId(data[0].id);
+        }
+      } catch (err) {
+        console.log("Failed to load sessions", err);
+      }
+    };
+
+    fetchSessions();
+  }, []);
 
   useEffect(() => {
     if (currentSessionId) {
@@ -133,9 +169,22 @@ export function useChatStore() {
     resetInputState();
   };
 
-  const loadSession = (session) => {
+  const loadSession = async (session) => {
     setCurrentSessionId(session.id);
-    setMessages(session.messages);
+
+    try {
+      const res = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/messages/${session.id}`,
+      );
+
+      const data = await res.json();
+
+      setMessages(data);
+    } catch (err) {
+      console.log("Failed to load messages", err);
+      setMessages([]);
+    }
+
     resetInputState();
   };
 
