@@ -10,42 +10,19 @@ const initialGreeting = {
 };
 
 export function useChatStore() {
-  const activeSession =
-    storedSessions.find((s) => s.id === storedCurrentId) ||
-    storedSessions[0] ||
-    null;
+  const [messages, setMessages] = useState([initialGreeting]);
 
-  const [messages, setMessages] = useState(
-    activeSession?.messages || [initialGreeting],
-  );
+  const [sessions, setSessions] = useState([]);
+
+  const [currentSessionId, setCurrentSessionId] = useState(null);
+  const fileRef = useRef(null);
   const [input, setInput] = useState("");
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  const [sessions, setSessions] = useState(storedSessions);
-  const [currentSessionId, setCurrentSessionId] = useState(
-    activeSession?.id || null,
-  );
-
-  const fileRef = useRef(null);
-
   // ========================
   // DB
   // ========================
-  useEffect(() => {
-    const fetchSessions = async () => {
-      try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/sessions`);
-
-        const data = await res.json();
-        setSessions(data);
-      } catch (err) {
-        console.log("Failed to load sessions", err);
-      }
-    };
-
-    fetchSessions();
-  }, []);
 
   useEffect(() => {
     const fetchSessions = async () => {
@@ -73,22 +50,21 @@ export function useChatStore() {
   useEffect(() => {
     if (!currentSessionId) return;
 
-    setSessions((prev) =>
-      prev.map((session) => {
+    setSessions((prev) => {
+      return prev.map((session) => {
         if (session.id !== currentSessionId) return session;
 
         return {
           ...session,
           messages,
-
           title:
             session.title === "New Session" && messages.length > 1
               ? messages[1]?.content?.slice(0, 30)
               : session.title,
         };
-      }),
-    );
-  }, [messages, currentSessionId]);
+      });
+    });
+  }, [messages]);
 
   // ========================
   //  CORE LOGIC
@@ -152,13 +128,17 @@ export function useChatStore() {
 
       const data = await res.json();
 
-      setMessages(data);
+      setMessages(data.length ? data : [initialGreeting]);
     } catch (err) {
       console.log("Failed to load messages", err);
       setMessages([]);
     }
 
     resetInputState();
+  };
+
+  const getReferenceText = () => {
+    return input.trim() || getLastAssistantText() || getLastUserText();
   };
 
   const handleSend = async () => {
@@ -168,7 +148,11 @@ export function useChatStore() {
 
     if (!messageText && !hasFiles) return;
 
-    const sessionId = currentSessionId || createSession(messages);
+    let sessionId = currentSessionId;
+
+    if (!sessionId) {
+      sessionId = createSession(messages);
+    }
 
     const userMessage = buildUserMessage(displayText);
     const updated = [...messages, userMessage];
@@ -261,10 +245,6 @@ export function useChatStore() {
     );
   };
 
-  const getReferenceText = () => {
-    return input.trim() || getLastAssistantText() || getLastUserText();
-  };
-
   const [quiz, setQuiz] = useState(null);
   const [quizLoading, setQuizLoading] = useState(false);
   const [quizResult, setQuizResult] = useState(null);
@@ -354,7 +334,6 @@ export function useChatStore() {
         setCurrentSessionId(filtered[0].id);
         setMessages(filtered[0].messages);
       } else {
-
         setCurrentSessionId(null);
         setMessages([initialGreeting]);
       }
