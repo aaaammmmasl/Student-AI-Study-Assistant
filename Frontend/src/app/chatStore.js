@@ -9,25 +9,7 @@ const initialGreeting = {
   content: "Hello, I'm StudyPilot. Ask me anything.",
 };
 
-function getStoredSessions() {
-  if (typeof window === "undefined") return [];
-  try {
-    const saved = localStorage.getItem("studypilot_sessions");
-    return saved ? JSON.parse(saved) : [];
-  } catch {
-    return [];
-  }
-}
-
-function getStoredCurrentSessionId() {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("studypilot_current_session");
-}
-
 export function useChatStore() {
-  const storedSessions = getStoredSessions();
-  const storedCurrentId = getStoredCurrentSessionId();
-
   const activeSession =
     storedSessions.find((s) => s.id === storedCurrentId) ||
     storedSessions[0] ||
@@ -46,9 +28,7 @@ export function useChatStore() {
   );
 
   const fileRef = useRef(null);
-  useEffect(() => {
-    localStorage.setItem("studypilot_sessions", JSON.stringify(sessions));
-  }, [sessions]);
+
   // ========================
   // DB
   // ========================
@@ -86,13 +66,6 @@ export function useChatStore() {
     fetchSessions();
   }, []);
 
-  useEffect(() => {
-    if (currentSessionId) {
-      localStorage.setItem("studypilot_current_session", currentSessionId);
-    } else {
-      localStorage.removeItem("studypilot_current_session");
-    }
-  }, [currentSessionId]);
   // ========================
   // SYNC CURRENT SESSION
   // ========================
@@ -381,7 +354,6 @@ export function useChatStore() {
         setCurrentSessionId(filtered[0].id);
         setMessages(filtered[0].messages);
       } else {
-        localStorage.removeItem("studypilot_current_session");
 
         setCurrentSessionId(null);
         setMessages([initialGreeting]);
