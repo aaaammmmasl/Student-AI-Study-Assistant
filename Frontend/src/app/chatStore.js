@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { sendChatRequest } from "../services/chatApi";
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -132,7 +132,7 @@ export function useChatStore() {
   };
 
   const getReferenceText = () => {
-    return input.trim() || getLastAssistantText() || getLastUserText();
+    return input.trim() || lastAssistantText || lastUserText;
   };
 
   const handleSend = async () => {
@@ -161,6 +161,13 @@ export function useChatStore() {
       setCurrentSessionId(sessionId);
     }
 
+    const userMessage = {
+      id: crypto.randomUUID(),
+      role: "user",
+      content: displayText,
+    };
+
+    setMessages((prev) => [...prev, userMessage]);
     resetInputState();
     setLoading(true);
 
@@ -179,11 +186,19 @@ export function useChatStore() {
     try {
       const data = await sendChatRequest({
         message: messageText,
-        messages: [], // مهم: لا تعتمد على frontend state هنا
+        messages: messages.slice(-10),
         files,
       });
 
       const replyText = data.reply;
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content: replyText,
+        },
+      ]);
 
       // save assistant message
       await fetch(`${API_URL}/api/messages`, {
@@ -195,12 +210,6 @@ export function useChatStore() {
           content: replyText,
         }),
       });
-
-      // 3. IMPORTANT: reload from DB
-      const res = await fetch(`${API_URL}/api/messages/${sessionId}`);
-      const freshMessages = await res.json();
-
-      setMessages(freshMessages);
     } catch (err) {
       setMessages((prev) => [
         ...prev,
@@ -249,29 +258,29 @@ export function useChatStore() {
 
   const GREETING_TEXT = initialGreeting.content;
 
-  const getLastAssistantText = () => {
-    return (
-      [...messages]
-        .reverse()
-        .find(
-          (msg) =>
-            msg.role === "assistant" &&
-            msg.content?.trim() &&
-            msg.content.trim() !== GREETING_TEXT,
-        )
-        ?.content?.trim() || ""
-    );
-  };
+  const lastAssistantText = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const msg = messages[i];
+      if (
+        msg.role === "assistant" &&
+        msg.content?.trim() &&
+        msg.content !== initialGreeting.content
+      ) {
+        return msg.content.trim();
+      }
+    }
+    return "";
+  }, [messages]);
 
-  const getLastUserText = () => {
-    return (
-      [...messages]
-        .reverse()
-        .find((msg) => msg.role === "user")
-        ?.content?.trim() || ""
-    );
-  };
-
+  const lastUserText = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const msg = messages[i];
+      if (msg.role === "user") {
+        return msg.content.trim();
+      }
+    }
+    return "";
+  }, [messages]);
   const [quiz, setQuiz] = useState(null);
   const [quizLoading, setQuizLoading] = useState(false);
   const [quizResult, setQuizResult] = useState(null);

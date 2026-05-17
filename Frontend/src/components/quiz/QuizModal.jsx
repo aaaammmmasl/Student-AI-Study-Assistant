@@ -1,20 +1,79 @@
-import { useEffect, useState } from "react";
-
+import { memo, useCallback, useEffect, useState } from "react";
 import Loader from "../UI/Thinking";
 
+const OptionButton = memo(function OptionButton({ opt, onClick, className }) {
+  return (
+    <button onClick={onClick} className={className}>
+      {opt}
+    </button>
+  );
+});
+
+const QuestionCard = memo(function QuestionCard({
+  q,
+  index,
+  userAnswer,
+  submitted,
+  onSelect,
+}) {
+  const correct = q.correctIndex;
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-zinc-800 p-4">
+      <div className="text-sm font-medium text-white">
+        {index + 1}. {q.question}
+      </div>
+
+      <div className="mt-3 space-y-2">
+        {q.options.map((opt, j) => {
+          const isSelected = userAnswer === j;
+          const isCorrect = j === correct;
+
+          let base =
+            "w-full text-left px-3 py-2 rounded-xl border transition-colors duration-150";
+
+          if (submitted) {
+            if (isCorrect) {
+              base += " border-green-500 bg-green-500/10 text-green-300";
+            } else if (isSelected) {
+              base += " border-red-500 bg-red-500/10 text-red-300";
+            } else {
+              base += " border-white/10 text-zinc-400";
+            }
+          } else {
+            base += isSelected
+              ? " border-lime-400 bg-lime-400/10 text-white"
+              : " border-white/10 text-zinc-300 hover:bg-zinc-700";
+          }
+
+          return (
+            <OptionButton
+              key={j}
+              opt={opt}
+              className={base}
+              onClick={() => onSelect(index, j)}
+            />
+          );
+        })}
+      </div>
+
+      {submitted && (
+        <div className="mt-3 text-xs text-zinc-400">{q.explanation}</div>
+      )}
+    </div>
+  );
+});
 
 function QuizModal({ isOpen, onClose, quiz, loading, handleGenerateQuiz }) {
   const [answers, setAnswers] = useState({});
   const [submitted, setSubmitted] = useState(false);
   const [score, setScore] = useState(0);
 
-  // regenerate
   const [questionCount, setQuestionCount] = useState(5);
   const [optionCount, setOptionCount] = useState(3);
 
   useEffect(() => {
     if (!isOpen) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setAnswers({});
       setSubmitted(false);
       setScore(0);
@@ -23,25 +82,25 @@ function QuizModal({ isOpen, onClose, quiz, loading, handleGenerateQuiz }) {
 
   useEffect(() => {
     if (quiz) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setAnswers({});
       setSubmitted(false);
       setScore(0);
     }
   }, [quiz]);
 
-  if (!isOpen) return null;
+  const handleSelect = useCallback(
+    (qIndex, optionIndex) => {
+      if (submitted) return;
 
-  const handleSelect = (qIndex, optionIndex) => {
-    if (submitted) return;
+      setAnswers((prev) => ({
+        ...prev,
+        [qIndex]: optionIndex,
+      }));
+    },
+    [submitted],
+  );
 
-    setAnswers((prev) => ({
-      ...prev,
-      [qIndex]: optionIndex,
-    }));
-  };
-
-  const handleSubmit = () => {
+  const handleSubmit = useCallback(() => {
     let correct = 0;
 
     quiz.forEach((q, i) => {
@@ -52,19 +111,19 @@ function QuizModal({ isOpen, onClose, quiz, loading, handleGenerateQuiz }) {
 
     setScore(correct);
     setSubmitted(true);
-  };
+  }, [answers, quiz]);
+
+  const handleGenerate = useCallback(() => {
+    handleGenerateQuiz({ questionCount, optionCount });
+  }, [handleGenerateQuiz, questionCount, optionCount]);
+
+  if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Overlay */}
-      <div
-        onClick={onClose}
-        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-      />
+      <div onClick={onClose} className="absolute inset-0 bg-black/70" />
 
-      {/* Modal */}
-      <div className="relative z-50 w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-3xl border border-white/10 bg-zinc-900 p-6 shadow-xl">
-        {/* Header */}
+      <div className="relative z-50 w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-3xl border border-white/10 bg-zinc-900 p-6 shadow-lg">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold text-white">Quiz Generator</h2>
 
@@ -73,12 +132,8 @@ function QuizModal({ isOpen, onClose, quiz, loading, handleGenerateQuiz }) {
           </button>
         </div>
 
-        {/* ========================= */}
-        {/* SETTINGS (IMPORTANT PART) */}
-        {/* ========================= */}
         {!quiz && (
           <div className="mt-6 space-y-4">
-            {/* Question Count */}
             <div>
               <label className="text-xs text-zinc-400">
                 Number of Questions
@@ -97,7 +152,6 @@ function QuizModal({ isOpen, onClose, quiz, loading, handleGenerateQuiz }) {
               </select>
             </div>
 
-            {/* Option Count */}
             <div>
               <label className="text-xs text-zinc-400">
                 Options per Question
@@ -115,9 +169,8 @@ function QuizModal({ isOpen, onClose, quiz, loading, handleGenerateQuiz }) {
               </select>
             </div>
 
-            {/* Generate Button */}
             <button
-              onClick={() => handleGenerateQuiz({ questionCount, optionCount })}
+              onClick={handleGenerate}
               className="w-full rounded-2xl bg-lime-400 py-3 font-semibold text-black hover:bg-lime-300"
             >
               Generate Quiz
@@ -125,7 +178,7 @@ function QuizModal({ isOpen, onClose, quiz, loading, handleGenerateQuiz }) {
 
             {loading && (
               <div className="mt-6 text-sm text-zinc-400">
-                <Loader/>
+                <Loader />
               </div>
             )}
 
@@ -137,69 +190,19 @@ function QuizModal({ isOpen, onClose, quiz, loading, handleGenerateQuiz }) {
           </div>
         )}
 
-        {/* ========================= */}
-        {/* QUIZ RESULTS */}
-        {/* ========================= */}
         {quiz && (
           <div className="mt-6 space-y-6">
-            {quiz.map((q, i) => {
-              const userAnswer = answers[i];
-              const correct = q.correctIndex;
+            {quiz.map((q, i) => (
+              <QuestionCard
+                key={q.id ?? i}
+                q={q}
+                index={i}
+                userAnswer={answers[i]}
+                submitted={submitted}
+                onSelect={handleSelect}
+              />
+            ))}
 
-              return (
-                <div
-                  key={i}
-                  className="rounded-2xl border border-white/10 bg-zinc-800 p-4"
-                >
-                  <div className="text-sm font-medium text-white">
-                    {i + 1}. {q.question}
-                  </div>
-
-                  <div className="mt-3 space-y-2">
-                    {q.options.map((opt, j) => {
-                      const isSelected = userAnswer === j;
-                      const isCorrect = j === correct;
-
-                      let base =
-                        "w-full text-left px-3 py-2 rounded-xl border transition";
-
-                      if (submitted) {
-                        if (isCorrect) {
-                          base +=
-                            " border-green-500 bg-green-500/10 text-green-300";
-                        } else if (isSelected) {
-                          base += " border-red-500 bg-red-500/10 text-red-300";
-                        } else {
-                          base += " border-white/10 text-zinc-400";
-                        }
-                      } else {
-                        base += isSelected
-                          ? " border-lime-400 bg-lime-400/10 text-white"
-                          : " border-white/10 text-zinc-300 hover:bg-zinc-700";
-                      }
-
-                      return (
-                        <button
-                          key={j}
-                          onClick={() => handleSelect(i, j)}
-                          className={base}
-                        >
-                          {opt}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {submitted && (
-                    <div className="mt-3 text-xs text-zinc-400">
-                      {q.explanation}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-
-            {/* Submit */}
             {!submitted && (
               <button
                 onClick={handleSubmit}
@@ -209,10 +212,9 @@ function QuizModal({ isOpen, onClose, quiz, loading, handleGenerateQuiz }) {
               </button>
             )}
 
-            {/* Score */}
             {submitted && (
-              <div className="text-center rounded-2xl bg-zinc-800 border border-white/10 p-4">
-                <div className="text-white font-semibold">
+              <div className="rounded-2xl border border-white/10 bg-zinc-800 p-4 text-center">
+                <div className="font-semibold text-white">
                   Score: {score} / {quiz.length}
                 </div>
               </div>
@@ -224,4 +226,4 @@ function QuizModal({ isOpen, onClose, quiz, loading, handleGenerateQuiz }) {
   );
 }
 
-export default QuizModal;
+export default memo(QuizModal);
