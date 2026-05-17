@@ -8,6 +8,9 @@ router.get("/", controller.getSessions);
 
 router.post("/", controller.createSession);
 
+router.patch("/:id", controller.renameSession);
+
 router.delete("/:id", controller.deleteSession);
+
 
 module.exports = router;

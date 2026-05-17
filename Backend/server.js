@@ -13,10 +13,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-app.use("/api", chatRoute);
-app.use("/api", quizRoute);
 app.use("/api/sessions", sessionRoute);
 app.use("/api/messages", messageRoute);
+app.use("/api/chat", chatRoute);
+app.use("/api/quiz", quizRoute);
 
 const PORT = process.env.PORT || 5000;
 

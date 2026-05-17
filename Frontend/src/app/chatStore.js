@@ -10,10 +10,8 @@ const initialGreeting = {
 };
 
 export function useChatStore() {
-  const [messages, setMessages] = useState([initialGreeting]);
-
   const [sessions, setSessions] = useState([]);
-
+  const [messages, setMessages] = useState([]);
   const [currentSessionId, setCurrentSessionId] = useState(null);
   const fileRef = useRef(null);
   const [input, setInput] = useState("");
@@ -32,7 +30,7 @@ export function useChatStore() {
 
         setSessions(data);
 
-        if (data.length > 0 && !currentSessionId) {
+        if (data.length > 0) {
           setCurrentSessionId(data[0].id);
         }
       } catch (err) {
@@ -42,7 +40,6 @@ export function useChatStore() {
 
     fetchSessions();
   }, []);
-
   // ========================
   // SYNC CURRENT SESSION
   // ========================
@@ -50,21 +47,15 @@ export function useChatStore() {
   useEffect(() => {
     if (!currentSessionId) return;
 
-    setSessions((prev) => {
-      return prev.map((session) => {
-        if (session.id !== currentSessionId) return session;
+    const fetchMessages = async () => {
+      const res = await fetch(`${API_URL}/api/messages/${currentSessionId}`);
+      const data = await res.json();
 
-        return {
-          ...session,
-          messages,
-          title:
-            session.title === "New Session" && messages.length > 1
-              ? messages[1]?.content?.slice(0, 30)
-              : session.title,
-        };
-      });
-    });
-  }, [messages]);
+      setMessages(data);
+    };
+
+    fetchMessages();
+  }, [currentSessionId]);
 
   // ========================
   //  CORE LOGIC
@@ -92,30 +83,33 @@ export function useChatStore() {
     if (fileRef.current) fileRef.current.value = "";
   };
 
-  const createSession = (startMessages = [initialGreeting]) => {
-    const session = {
-      id: crypto.randomUUID(),
-      title: "New Session",
-      messages: startMessages,
-    };
-
-    setSessions((prev) => {
-      const updated = [session, ...prev];
-      return updated;
-    });
-
-    setCurrentSessionId(session.id);
-    setMessages(startMessages);
-
-    return session.id;
-  };
   // ========================
   //  ACTIONS UI
   // ========================
 
-  const handleNewChat = () => {
-    createSession([initialGreeting]);
-    resetInputState();
+  const handleNewChat = async () => {
+    try {
+      const res = await fetch(`${API_URL}/api/sessions`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          title: "New Session",
+        }),
+      });
+
+      const newSession = await res.json();
+
+      setSessions((prev) => [newSession, ...prev]);
+
+      setCurrentSessionId(newSession.id);
+      setMessages([]);
+
+      resetInputState();
+    } catch (err) {
+      console.log("Failed to create session", err);
+    }
   };
 
   const loadSession = async (session) => {
@@ -128,7 +122,7 @@ export function useChatStore() {
 
       const data = await res.json();
 
-      setMessages(data.length ? data : [initialGreeting]);
+      setMessages(data);
     } catch (err) {
       console.log("Failed to load messages", err);
       setMessages([]);
@@ -150,39 +144,72 @@ export function useChatStore() {
 
     let sessionId = currentSessionId;
 
+    // create session if missing
     if (!sessionId) {
-      sessionId = createSession(messages);
+      const res = await fetch(`${API_URL}/api/sessions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: displayText.slice(0, 30),
+        }),
+      });
+
+      const newSession = await res.json();
+      sessionId = newSession.id;
+
+      setSessions((prev) => [newSession, ...prev]);
+      setCurrentSessionId(sessionId);
     }
 
-    const userMessage = buildUserMessage(displayText);
-    const updated = [...messages, userMessage];
-
-    setMessages(updated);
-    setLoading(true);
     resetInputState();
+    setLoading(true);
 
+    // 1. save user message
+    await fetch(`${API_URL}/api/messages`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sessionId,
+        role: "user",
+        content: displayText,
+      }),
+    });
+
+    // 2. AI response
     try {
       const data = await sendChatRequest({
         message: messageText,
-        messages: updated,
+        messages: [], // مهم: لا تعتمد على frontend state هنا
         files,
       });
 
-      const replyText = data.reply || "No response.";
+      const replyText = data.reply;
 
-      await streamAssistantMessage(replyText);
+      // save assistant message
+      await fetch(`${API_URL}/api/messages`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sessionId,
+          role: "assistant",
+          content: replyText,
+        }),
+      });
+
+      // 3. IMPORTANT: reload from DB
+      const res = await fetch(`${API_URL}/api/messages/${sessionId}`);
+      const freshMessages = await res.json();
+
+      setMessages(freshMessages);
     } catch (err) {
-      console.log(err);
-
-      const errorMessage = {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: "Server error. Please try again.",
-      };
-
-      const finalMessages = [...updated, errorMessage];
-
-      setMessages(finalMessages);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content: "Server error. Please try again.",
+        },
+      ]);
     }
 
     setLoading(false);
@@ -314,29 +341,56 @@ export function useChatStore() {
   //  RENAME & EDITE SESSION
   // ========================
 
-  const renameSession = (id, newTitle) => {
-    setSessions((prev) =>
-      prev.map((session) =>
-        session.id === id
-          ? { ...session, title: newTitle || "Untitled Session" }
-          : session,
-      ),
-    );
+  const renameSession = async (id, newTitle) => {
+    try {
+      const res = await fetch(`${API_URL}/api/sessions/${id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          title: newTitle,
+        }),
+      });
+
+      const updatedSession = await res.json();
+
+      setSessions((prev) =>
+        prev.map((session) => (session.id === id ? updatedSession : session)),
+      );
+    } catch (err) {
+      console.log("Failed to rename session", err);
+      console.log("API_URL =", API_URL);
+      console.log("PATCH URL =", `${API_URL}/api/sessions/${id}`);
+    }
   };
+  const deleteSession = async (id) => {
+    try {
+      await fetch(`${API_URL}/api/sessions/${id}`, {
+        method: "DELETE",
+      });
 
-  const deleteSession = (id) => {
-    const filtered = sessions.filter((session) => session.id !== id);
+      const res = await fetch(`${API_URL}/api/sessions`);
+      const data = await res.json();
 
-    setSessions(filtered);
+      setSessions(data);
 
-    if (currentSessionId === id) {
-      if (filtered.length > 0) {
-        setCurrentSessionId(filtered[0].id);
-        setMessages(filtered[0].messages);
-      } else {
-        setCurrentSessionId(null);
-        setMessages([initialGreeting]);
+      if (currentSessionId === id) {
+        if (data.length > 0) {
+          setCurrentSessionId(data[0].id);
+
+          const messagesRes = await fetch(
+            `${API_URL}/api/messages/${data[0].id}`,
+          );
+          const messagesData = await messagesRes.json();
+          setMessages(messagesData);
+        } else {
+          setCurrentSessionId(null);
+          setMessages([]);
+        }
       }
+    } catch (err) {
+      console.log("Failed to delete session", err);
     }
   };
 

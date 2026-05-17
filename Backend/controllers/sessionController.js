@@ -41,23 +41,46 @@ exports.createSession = async (req, res) => {
   }
 };
 
+//RENAME SESSION
+exports.renameSession = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title } = req.body;
+
+    const updatedSession = await prisma.session.update({
+      where: { id },
+      data: {
+        title,
+      },
+    });
+
+    res.json(updatedSession);
+  } catch (error) {
+    console.log(error);
+
+    res.status(500).json({
+      error: "Failed to rename session",
+    });
+  }
+};
+
 // DELETE SESSION
 exports.deleteSession = async (req, res) => {
   try {
     const { id } = req.params;
 
-    await prisma.session.delete({
-      where: {
-        id,
-      },
-    });
+    await prisma.$transaction([
+      prisma.message.deleteMany({
+        where: { sessionId: id },
+      }),
+      prisma.session.delete({
+        where: { id },
+      }),
+    ]);
 
-    res.json({
-      success: true,
-    });
+    res.json({ success: true });
   } catch (error) {
     console.log(error);
-
     res.status(500).json({
       error: "Failed to delete session",
     });

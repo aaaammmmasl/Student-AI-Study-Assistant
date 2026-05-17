@@ -6,7 +6,6 @@ const upload = multer({ storage: multer.memoryStorage() });
 
 const quizController = require("../controllers/quizController");
 
-
-router.post("/quiz", upload.array("files"), quizController.handleQuiz);
+router.post("/", upload.array("files"), quizController.handleQuiz);
 
 module.exports = router;
