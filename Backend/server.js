@@ -7,12 +7,14 @@ const quizRoute = require("./routes/quiz");
 const chatRoute = require("./routes/chat");
 const sessionRoute = require("./routes/session");
 const messageRoute = require("./routes/message");
+const authRoute = require("./routes/auth");
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 
+app.use("/api/auth", authRoute);
 app.use("/api/sessions", sessionRoute);
 app.use("/api/messages", messageRoute);
 app.use("/api/chat", chatRoute);

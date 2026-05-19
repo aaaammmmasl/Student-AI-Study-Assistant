@@ -2,7 +2,6 @@ import { useState, useRef, useEffect, useMemo } from "react";
 import { sendChatRequest } from "../services/chatApi";
 
 const API_URL = import.meta.env.VITE_API_URL;
-
 const initialGreeting = {
   id: 1,
   role: "assistant",
@@ -25,8 +24,22 @@ export function useChatStore() {
   useEffect(() => {
     const fetchSessions = async () => {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/sessions`);
+        const token = localStorage.getItem("token");
+
+        const res = await fetch(`${API_URL}/api/sessions`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
         const data = await res.json();
+
+        // حماية من crash
+        if (!Array.isArray(data)) {
+          console.log("Invalid sessions response:", data);
+          setSessions([]);
+          return;
+        }
 
         setSessions(data);
 
@@ -48,7 +61,12 @@ export function useChatStore() {
     if (!currentSessionId) return;
 
     const fetchMessages = async () => {
-      const res = await fetch(`${API_URL}/api/messages/${currentSessionId}`);
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${API_URL}/api/messages/${currentSessionId}`, {
+        headers: {
+          Authorization: `bearer ${token}`,
+        },
+      });
       const data = await res.json();
 
       setMessages(data);
@@ -89,9 +107,11 @@ export function useChatStore() {
 
   const handleNewChat = async () => {
     try {
+      const token = localStorage.getItem("token");
       const res = await fetch(`${API_URL}/api/sessions`, {
         method: "POST",
         headers: {
+          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -116,8 +136,14 @@ export function useChatStore() {
     setCurrentSessionId(session.id);
 
     try {
+      const token = localStorage.getItem("token");
       const res = await fetch(
         `${import.meta.env.VITE_API_URL}/api/messages/${session.id}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
       );
 
       const data = await res.json();
@@ -146,9 +172,13 @@ export function useChatStore() {
 
     // create session if missing
     if (!sessionId) {
+      const token = localStorage.getItem("token");
       const res = await fetch(`${API_URL}/api/sessions`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
           title: displayText.slice(0, 30),
         }),
@@ -172,9 +202,13 @@ export function useChatStore() {
     setLoading(true);
 
     // 1. save user message
+    const token = localStorage.getItem("token");
     await fetch(`${API_URL}/api/messages`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
       body: JSON.stringify({
         sessionId,
         role: "user",
@@ -186,8 +220,9 @@ export function useChatStore() {
     try {
       const data = await sendChatRequest({
         message: messageText,
-        messages: messages.slice(-10),
+        sessionId: sessionId,
         files,
+        token,
       });
 
       const replyText = data.reply;
@@ -201,9 +236,13 @@ export function useChatStore() {
       ]);
 
       // save assistant message
+      const token = localStorage.getItem("token");
       await fetch(`${API_URL}/api/messages`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
           sessionId,
           role: "assistant",
@@ -352,10 +391,12 @@ export function useChatStore() {
 
   const renameSession = async (id, newTitle) => {
     try {
+      const token = localStorage.getItem("token");
       const res = await fetch(`${API_URL}/api/sessions/${id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           title: newTitle,
@@ -375,11 +416,15 @@ export function useChatStore() {
   };
   const deleteSession = async (id) => {
     try {
+      const token = localStorage.getItem("token");
       await fetch(`${API_URL}/api/sessions/${id}`, {
         method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
       });
 
-      const res = await fetch(`${API_URL}/api/sessions`);
+      const res = await fetch(`${API_URL}/api/sessions`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
       const data = await res.json();
 
       setSessions(data);
@@ -390,6 +435,11 @@ export function useChatStore() {
 
           const messagesRes = await fetch(
             `${API_URL}/api/messages/${data[0].id}`,
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            },
           );
           const messagesData = await messagesRes.json();
           setMessages(messagesData);

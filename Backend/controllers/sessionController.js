@@ -3,13 +3,12 @@ const prisma = require("../db/prisma");
 // GET ALL SESSIONS
 exports.getSessions = async (req, res) => {
   try {
+    const userId = req.user.id;
+
     const sessions = await prisma.session.findMany({
-      include: {
-        messages: true,
-      },
-      orderBy: {
-        createdAt: "desc",
-      },
+      where: { userId },
+      include: { messages: true },
+      orderBy: { createdAt: "desc" },
     });
 
     res.json(sessions);
@@ -25,9 +24,12 @@ exports.getSessions = async (req, res) => {
 // CREATE SESSION
 exports.createSession = async (req, res) => {
   try {
+    const userId = req.user.id;
+
     const session = await prisma.session.create({
       data: {
         title: req.body.title || "New Session",
+        userId,
       },
     });
 
@@ -46,12 +48,22 @@ exports.renameSession = async (req, res) => {
   try {
     const { id } = req.params;
     const { title } = req.body;
+    const userId = req.user.id;
+
+    const session = await prisma.session.findFirst({
+      where: {
+        id,
+        userId,
+      },
+    });
+
+    if (!session) {
+      return res.status(404).json({ error: "Session not found" });
+    }
 
     const updatedSession = await prisma.session.update({
       where: { id },
-      data: {
-        title,
-      },
+      data: { title },
     });
 
     res.json(updatedSession);
@@ -69,12 +81,17 @@ exports.deleteSession = async (req, res) => {
   try {
     const { id } = req.params;
 
+    const userId = req.user.id;
+
     await prisma.$transaction([
       prisma.message.deleteMany({
         where: { sessionId: id },
       }),
-      prisma.session.delete({
-        where: { id },
+      prisma.session.deleteMany({
+        where: {
+          id,
+          userId,
+        },
       }),
     ]);
 

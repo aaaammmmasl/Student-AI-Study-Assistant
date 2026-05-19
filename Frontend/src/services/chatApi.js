@@ -1,33 +1,22 @@
 const API_URL = import.meta.env.VITE_API_URL;
 
-export async function sendChatRequest({ message, messages, files }) {
-  const hasFiles = files && files.length > 0;
+export const sendChatRequest = async ({ message, sessionId, files }) => {
+  const formData = new FormData();
 
-  if (hasFiles) {
-    const formData = new FormData();
+  formData.append("message", message);
+  formData.append("sessionId", sessionId);
 
-    files.forEach((file) => {
-      formData.append("files", file);
-    });
-
-    formData.append("message", message);
-    formData.append("messages", JSON.stringify(messages));
-
-    const res = await fetch(`${API_URL}/api/chat`, {
-      method: "POST",
-      body: formData,
-    });
-
-    return res.json();
-  }
+  files.forEach((file) => {
+    formData.append("files", file);
+  });
 
   const res = await fetch(`${API_URL}/api/chat`, {
     method: "POST",
+    body: formData,
     headers: {
-      "Content-Type": "application/json",
+      Authorization: `Bearer ${localStorage.getItem("token")}`,
     },
-    body: JSON.stringify({ message, messages }),
   });
 
   return res.json();
-}
+};

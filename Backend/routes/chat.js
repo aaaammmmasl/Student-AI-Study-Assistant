@@ -5,7 +5,8 @@ const multer = require("multer");
 const upload = multer({ storage: multer.memoryStorage() });
 
 const chatController = require("../controllers/chatController");
+const auth = require("../middleware/authMiddleware");
 
-router.post("/", upload.array("files"), chatController.handleChat);
+router.post("/", auth, upload.array("files"), chatController.handleChat);
 
 module.exports = router;

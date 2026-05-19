@@ -3,10 +3,24 @@ const prisma = require("../db/prisma");
 exports.createMessage = async (req, res) => {
   try {
     const { sessionId, role, content } = req.body;
+    const userId = req.user.id;
 
     if (!sessionId || !role || !content) {
       return res.status(400).json({
         error: "sessionId, role and content are required",
+      });
+    }
+
+    const session = await prisma.session.findFirst({
+      where: {
+        id: sessionId,
+        userId,
+      },
+    });
+
+    if (!session) {
+      return res.status(404).json({
+        error: "Session not found",
       });
     }
 
@@ -30,6 +44,20 @@ exports.createMessage = async (req, res) => {
 exports.getMessagesBySession = async (req, res) => {
   try {
     const { sessionId } = req.params;
+    const userId = req.user.id;
+
+    const session = await prisma.session.findFirst({
+      where: {
+        id: sessionId,
+        userId,
+      },
+    });
+
+    if (!session) {
+      return res.status(404).json({
+        error: "Session not found",
+      });
+    }
 
     const messages = await prisma.message.findMany({
       where: { sessionId },
