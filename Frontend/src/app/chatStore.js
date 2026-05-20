@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { sendChatRequest } from "../services/chatApi";
 
+import api from "../services/api";
+
 const API_URL = import.meta.env.VITE_API_URL;
 const initialGreeting = {
   id: 1,
@@ -9,6 +11,7 @@ const initialGreeting = {
 };
 
 export function useChatStore() {
+ 
   const [sessions, setSessions] = useState([]);
   const [messages, setMessages] = useState([]);
   const [currentSessionId, setCurrentSessionId] = useState(null);
@@ -24,15 +27,9 @@ export function useChatStore() {
   useEffect(() => {
     const fetchSessions = async () => {
       try {
-        const token = localStorage.getItem("token");
+        const res = await api.get("/api/sessions");
 
-        const res = await fetch(`${API_URL}/api/sessions`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        const data = await res.json();
+        const data = res.data;
 
         // حماية من crash
         if (!Array.isArray(data)) {
@@ -61,15 +58,15 @@ export function useChatStore() {
     if (!currentSessionId) return;
 
     const fetchMessages = async () => {
-      const token = localStorage.getItem("token");
-      const res = await fetch(`${API_URL}/api/messages/${currentSessionId}`, {
-        headers: {
-          Authorization: `bearer ${token}`,
-        },
-      });
-      const data = await res.json();
+      try {
+        const res = await api.get(`/api/messages/${currentSessionId}`);
+        const data = res.data;
 
-      setMessages(data);
+        setMessages(Array.isArray(data) ? data : []);
+      } catch (err) {
+        console.log("Failed to fetch message", err);
+        setMessages([]);
+      }
     };
 
     fetchMessages();
@@ -107,19 +104,11 @@ export function useChatStore() {
 
   const handleNewChat = async () => {
     try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(`${API_URL}/api/sessions`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          title: "New Session",
-        }),
+      const res = await api.post("/api/sessions", {
+        title: "New Session",
       });
 
-      const newSession = await res.json();
+      const newSession = res.data;
 
       setSessions((prev) => [newSession, ...prev]);
 
@@ -136,19 +125,9 @@ export function useChatStore() {
     setCurrentSessionId(session.id);
 
     try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/messages/${session.id}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        },
-      );
+      const res = await api.get(`/api/messages/${session.id}`);
 
-      const data = await res.json();
-
-      setMessages(data);
+      setMessages(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       console.log("Failed to load messages", err);
       setMessages([]);
@@ -163,93 +142,96 @@ export function useChatStore() {
 
   const handleSend = async () => {
     const hasFiles = files.length > 0;
+
     const messageText = input.trim() || (!hasFiles ? getReferenceText() : "");
+
     const displayText = input.trim() || "Uploaded file.";
 
     if (!messageText && !hasFiles) return;
 
     let sessionId = currentSessionId;
 
-    // create session if missing
-    if (!sessionId) {
-      const token = localStorage.getItem("token");
-      const res = await fetch(`${API_URL}/api/sessions`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
+    try {
+      // =========================
+      // CREATE SESSION IF NEEDED
+      // =========================
+
+      if (!sessionId) {
+        const res = await api.post("/api/sessions", {
           title: displayText.slice(0, 30),
-        }),
-      });
+        });
 
-      const newSession = await res.json();
-      sessionId = newSession.id;
+        const newSession = res.data;
 
-      setSessions((prev) => [newSession, ...prev]);
-      setCurrentSessionId(sessionId);
-    }
+        sessionId = newSession.id;
 
-    const userMessage = {
-      id: crypto.randomUUID(),
-      role: "user",
-      content: displayText,
-    };
+        setSessions((prev) => [newSession, ...prev]);
 
-    setMessages((prev) => [...prev, userMessage]);
-    resetInputState();
-    setLoading(true);
+        setCurrentSessionId(sessionId);
+      }
 
-    // 1. save user message
-    const token = localStorage.getItem("token");
-    await fetch(`${API_URL}/api/messages`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
+      // =========================
+      // USER MESSAGE UI
+      // =========================
+
+      const userMessage = {
+        id: crypto.randomUUID(),
+        role: "user",
+        content: displayText,
+      };
+
+      setMessages((prev) => [...prev, userMessage]);
+
+      resetInputState();
+
+      setLoading(true);
+
+      // =========================
+      // SAVE USER MESSAGE
+      // =========================
+
+      await api.post("/api/messages", {
         sessionId,
         role: "user",
         content: displayText,
-      }),
-    });
+      });
 
-    // 2. AI response
-    try {
+      // =========================
+      // AI REQUEST
+      // =========================
+
       const data = await sendChatRequest({
         message: messageText,
-        sessionId: sessionId,
+        sessionId,
         files,
-        token,
       });
 
       const replyText = data.reply;
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          content: replyText,
-        },
-      ]);
 
-      // save assistant message
-      const token = localStorage.getItem("token");
-      await fetch(`${API_URL}/api/messages`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          sessionId,
-          role: "assistant",
-          content: replyText,
-        }),
+      // =========================
+      // ASSISTANT UI MESSAGE
+      // =========================
+
+      const assistantMessage = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content: replyText,
+      };
+
+      setMessages((prev) => [...prev, assistantMessage]);
+
+      // =========================
+      // SAVE ASSISTANT MESSAGE
+      // =========================
+
+      await api.post("/api/messages", {
+        sessionId,
+        role: "assistant",
+        content: replyText,
       });
     } catch (err) {
+      console.log("Send Error:", err);
+
       setMessages((prev) => [
         ...prev,
         {
@@ -258,9 +240,9 @@ export function useChatStore() {
           content: "Server error. Please try again.",
         },
       ]);
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -336,6 +318,7 @@ export function useChatStore() {
       const context = input.trim() || (!hasFiles ? getReferenceText() : "");
 
       const formData = new FormData();
+
       formData.append("context", context);
       formData.append("questionCount", String(questionCount));
       formData.append("optionCount", String(optionCount));
@@ -344,22 +327,14 @@ export function useChatStore() {
         formData.append("files", file);
       });
 
-      const res = await fetch(`${API_URL}/api/quiz`, {
-        method: "POST",
-        body: formData,
-      });
+      const res = await api.post("/api/quiz", formData);
 
-      const data = await res.json();
+      const data = res.data;
 
-      // CONSOLE
       console.log("QUIZ RESPONSE:", data);
       console.log("QUIZ CONTEXT:", context);
 
       const questions = data.quiz?.questions || [];
-
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to generate quiz");
-      }
 
       if (!questions.length) {
         throw new Error("Quiz returned empty questions");
@@ -391,58 +366,37 @@ export function useChatStore() {
 
   const renameSession = async (id, newTitle) => {
     try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(`${API_URL}/api/sessions/${id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          title: newTitle,
-        }),
+      const res = await api.patch(`/api/sessions/${id}`, {
+        title: newTitle,
       });
 
-      const updatedSession = await res.json();
+      const updatedSession = res.data;
 
       setSessions((prev) =>
         prev.map((session) => (session.id === id ? updatedSession : session)),
       );
     } catch (err) {
       console.log("Failed to rename session", err);
-      console.log("API_URL =", API_URL);
-      console.log("PATCH URL =", `${API_URL}/api/sessions/${id}`);
     }
   };
   const deleteSession = async (id) => {
     try {
-      const token = localStorage.getItem("token");
-      await fetch(`${API_URL}/api/sessions/${id}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      await api.delete(`/api/sessions/${id}`);
 
-      const res = await fetch(`${API_URL}/api/sessions`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      const data = await res.json();
+      const res = await api.get("/api/sessions");
+      const data = res.data;
 
-      setSessions(data);
+      setSessions(Array.isArray(data) ? data : []);
 
       if (currentSessionId === id) {
-        if (data.length > 0) {
-          setCurrentSessionId(data[0].id);
+        if (Array.isArray(data) && data.length > 0) {
+          const newId = data[0].id;
 
-          const messagesRes = await fetch(
-            `${API_URL}/api/messages/${data[0].id}`,
-            {
-              headers: {
-                Authorization: `Bearer ${token}`,
-              },
-            },
-          );
-          const messagesData = await messagesRes.json();
-          setMessages(messagesData);
+          setCurrentSessionId(newId);
+
+          const messagesRes = await api.get(`/api/messages/${newId}`);
+
+          setMessages(messagesRes.data);
         } else {
           setCurrentSessionId(null);
           setMessages([]);

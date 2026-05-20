@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL;
+import api from "./api";
 
 export const sendChatRequest = async ({ message, sessionId, files }) => {
   const formData = new FormData();
@@ -10,13 +10,11 @@ export const sendChatRequest = async ({ message, sessionId, files }) => {
     formData.append("files", file);
   });
 
-  const res = await fetch(`${API_URL}/api/chat`, {
-    method: "POST",
-    body: formData,
+  const res = await api.post("/api/chat", formData, {
     headers: {
-      Authorization: `Bearer ${localStorage.getItem("token")}`,
+      "Content-Type": "multipart/form-data",
     },
   });
 
-  return res.json();
+  return res.data;
 };

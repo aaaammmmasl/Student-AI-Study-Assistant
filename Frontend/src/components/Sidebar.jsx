@@ -31,6 +31,8 @@ function Sidebar({
   const filteredSessions = useMemo(() => {
     const keyword = search.toLowerCase().trim();
 
+    if (!Array.isArray(sessions)) return [];
+
     if (!keyword) return sessions;
 
     return sessions.filter((session) =>
@@ -247,6 +249,10 @@ function Sidebar({
       </aside>
     </>
   );
+  const logout = () => {
+    localStorage.removeItem("token");
+    window.location.href = "/login";
+  };
 }
 
 export default Sidebar;
