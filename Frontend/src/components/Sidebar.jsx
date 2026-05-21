@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Sparkles,
   Plus,
@@ -20,7 +21,12 @@ function Sidebar({
   deleteSession,
   isOpen,
   setIsOpen,
+  setCurrentSessionId,
+  setMessages,
+  setSessions,
 }) {
+  const navigate = useNavigate();
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [draftTitle, setDraftTitle] = useState("");
   const [search, setSearch] = useState("");
@@ -246,13 +252,55 @@ function Sidebar({
         <div className="border-t border-white/10 px-5 py-4 text-xs text-zinc-500">
           {sessions.length} Chats Saved
         </div>
+        <div className="px-4 pb-4">
+          <button
+            onClick={() => setShowLogoutModal(true)}
+            className="w-full rounded-2xl bg-red-500/10 px-4 py-3 text-sm text-red-400 hover:bg-red-500/20"
+          >
+            Logout
+          </button>
+        </div>
       </aside>
+      {/* MODAL */}
+      {showLogoutModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <div className="w-[320px] rounded-2xl bg-zinc-900 border border-white/10 p-5">
+            <h2 className="text-white text-lg font-semibold mb-2">
+              Confirm Logout
+            </h2>
+
+            <p className="text-zinc-400 text-sm mb-5">
+              Are you sure you want to logout?
+            </p>
+
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setShowLogoutModal(false)}
+                className="px-4 py-2 rounded-xl bg-zinc-800 text-white"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={() => {
+                  localStorage.removeItem("token");
+
+                  setSessions([]);
+                  setMessages([]);
+                  setCurrentSessionId(null);
+
+                  navigate("/login", { replace: true });
+                }}
+                className="px-4 py-2 rounded-xl bg-red-500 text-white"
+              >
+                Logout
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
-  const logout = () => {
-    localStorage.removeItem("token");
-    window.location.href = "/login";
-  };
 }
 
 export default Sidebar;

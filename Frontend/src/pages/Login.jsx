@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 
-export default function Login() {
+export default function Login({onAuthChange}) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -13,16 +13,23 @@ export default function Login() {
     try {
       setError("");
 
-      const res = await api.post("/auth/login", {
+      const res = await api.post("/api/auth/login", {
         email,
         password,
       });
 
-      localStorage.setItem("token", res.data.token);
+      const token = res.data?.token;
 
-      navigate("/");
+      if (!token) {
+        setError("Login failed: no token received");
+        return;
+      }
+
+      localStorage.setItem("token", token);
+      onAuthChange?.();
+      navigate("/", { replace: true });
     } catch (err) {
-      setError("Invalid credentials");
+      setError(err.response?.data?.error || "Invalid credentials");
     }
   };
 

@@ -18,6 +18,13 @@ function Chat() {
   const handleOpenQuiz = () => {
     setIsQuizOpen(true);
   };
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+
+    if (!token) {
+      window.location.href = "/login";
+    }
+  }, []);
   // Auto scroll to bottom whenever messages change
 
   useEffect(() => {

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 
-export default function Register() {
+export default function Register({onAuthChange}) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -13,19 +13,18 @@ export default function Register() {
     try {
       setError("");
 
-      const res = await api.post("api/auth/register", {
+      const res = await api.post("/api/auth/register", {
         email,
         password,
       });
 
       localStorage.setItem("token", res.data.token);
-
-      navigate("/");
+      onAuthChange?.();
+      navigate("/", { replace: true });
     } catch (err) {
-      setError("Registration failed");
+      setError(err.response?.data?.error || "Registration failed");
     }
   };
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-zinc-950 text-white">
       <div className="w-[350px] p-6 bg-zinc-900 border border-white/10 rounded-2xl">

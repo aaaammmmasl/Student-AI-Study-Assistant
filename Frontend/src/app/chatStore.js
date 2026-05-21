@@ -11,7 +11,6 @@ const initialGreeting = {
 };
 
 export function useChatStore() {
- 
   const [sessions, setSessions] = useState([]);
   const [messages, setMessages] = useState([]);
   const [currentSessionId, setCurrentSessionId] = useState(null);
@@ -28,10 +27,8 @@ export function useChatStore() {
     const fetchSessions = async () => {
       try {
         const res = await api.get("/api/sessions");
-
         const data = res.data;
 
-        // حماية من crash
         if (!Array.isArray(data)) {
           console.log("Invalid sessions response:", data);
           setSessions([]);
@@ -47,6 +44,9 @@ export function useChatStore() {
         console.log("Failed to load sessions", err);
       }
     };
+
+    const token = localStorage.getItem("token");
+    if (!token) return;
 
     fetchSessions();
   }, []);
@@ -423,6 +423,9 @@ export function useChatStore() {
     // setters
     setInput,
     setFiles,
+    setSessions,
+    setMessages,
+    setCurrentSessionId,
 
     // refs
     fileRef,
