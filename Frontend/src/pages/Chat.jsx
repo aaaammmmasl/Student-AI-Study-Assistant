@@ -21,6 +21,25 @@ function Chat() {
     files: [],
   });
 
+  const lastScrollTopRef = useRef(0);
+  const [showHeader, setShowHeader] = useState(true);
+
+  const handleScroll = (e) => {
+    if (window.innerWidth >= 768) return;
+
+    const currentScrollTop = e.currentTarget.scrollTop;
+
+    if (currentScrollTop <= 20) {
+      setShowHeader(true);
+    } else if (currentScrollTop > lastScrollTopRef.current) {
+      setShowHeader(false);
+    } else {
+      setShowHeader(true);
+    }
+
+    lastScrollTopRef.current = currentScrollTop;
+  };
+
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isQuizOpen, setIsQuizOpen] = useState(false);
 
@@ -62,10 +81,23 @@ function Chat() {
 
         <main className="flex h-full min-w-0 flex-1 flex-col">
           {/* Header fixed*/}
-          <ChatHeader toggleSidebar={() => setIsSidebarOpen((prev) => !prev)} />
+          <div
+            className={`transition-all duration-300 ${
+              showHeader
+                ? "h-auto opacity-100"
+                : "h-0 opacity-0 pointer-events-none"
+            }`}
+          >
+            <ChatHeader
+              toggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
+            />
+          </div>
 
           {/* Messages area (scrollable  */}
-          <div className="flex-1 overflow-y-auto px-4 py-8 sm:px-8">
+          <div
+            onScroll={handleScroll}
+            className="flex-1 overflow-y-auto px-4 py-8 sm:px-8"
+          >
             <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
               <ChatMessages messages={chat.messages} loading={chat.loading} />
 

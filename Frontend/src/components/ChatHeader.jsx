@@ -1,12 +1,15 @@
 import { Menu } from "lucide-react";
 
-function ChatHeader({ toggleSidebar }) {
+function ChatHeader({ toggleSidebar, visible = true }) {
   return (
-    <header className="flex items-center gap-3 border-b border-white/10 px-4 py-4 sm:px-8">
-      {/* زر الموبايل */}
+    <header
+      className={`flex items-center gap-3 border-b border-white/10 bg-zinc-950/95 px-4 py-4 backdrop-blur transition-transform duration-300 md:translate-y-0 ${
+        visible ? "translate-y-0" : "-translate-y-full"
+      }`}
+    >
       <button
         onClick={toggleSidebar}
-        className="md:hidden rounded-lg bg-zinc-800 p-2 hover:bg-zinc-700"
+        className="rounded-lg bg-zinc-800 p-2 hover:bg-zinc-700 md:hidden"
       >
         <Menu size={18} />
       </button>

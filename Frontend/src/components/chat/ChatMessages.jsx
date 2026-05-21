@@ -9,7 +9,7 @@ function ChatMessages({ messages, loading }) {
     bottomRef.current?.scrollIntoView({
       behavior: "smooth",
     });
-  }, [messages, loading]);
+  }, [messages]);
 
   return (
     

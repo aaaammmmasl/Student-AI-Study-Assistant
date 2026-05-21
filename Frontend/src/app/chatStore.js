@@ -108,18 +108,24 @@ export function useChatStore() {
 
   const handleSend = async ({ text, files = [] }) => {
     const hasFiles = files.length > 0;
+    const typedText = text.trim();
 
-    const messageText = text.trim() || (!hasFiles ? getReferenceText() : "");
-    const displayText = text.trim() || "Uploaded file.";
+    const messageText = typedText || (!hasFiles ? getReferenceText() : "");
+    const displayText = typedText || "Uploaded file.";
 
     if (!messageText && !hasFiles) return;
 
+    const makeTitle = (value) => value.trim().replace(/\s+/g, " ").slice(0, 30);
+
     let sessionId = currentSessionId;
+    const currentSession = sessions.find((s) => s.id === currentSessionId);
+    const shouldRename =
+      currentSession?.title === "New Session" && typedText.length > 0;
 
     try {
       if (!sessionId) {
         const res = await api.post("/api/sessions", {
-          title: displayText.slice(0, 30),
+          title: makeTitle(displayText),
         });
 
         const newSession = res.data;
@@ -129,14 +135,33 @@ export function useChatStore() {
         setCurrentSessionId(sessionId);
       }
 
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: crypto.randomUUID(),
-          role: "user",
-          content: displayText,
-        },
-      ]);
+      const userMessage = {
+        id: crypto.randomUUID(),
+        role: "user",
+        content: displayText,
+      };
+
+      setMessages((prev) => [...prev, userMessage]);
+
+      setSessions((prev) =>
+        prev.map((s) =>
+          s.id === sessionId
+            ? {
+                ...s,
+                ...(shouldRename ? { title: makeTitle(typedText) } : {}),
+                messages: [...(s.messages || []), userMessage],
+              }
+            : s,
+        ),
+      );
+
+      if (shouldRename) {
+        api
+          .patch(`/api/sessions/${sessionId}`, {
+            title: makeTitle(typedText),
+          })
+          .catch(() => {});
+      }
 
       setLoading(true);
 
@@ -154,14 +179,24 @@ export function useChatStore() {
 
       const replyText = data.reply;
 
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          content: replyText,
-        },
-      ]);
+      const assistantMessage = {
+        id: crypto.randomUUID(),
+        role: "assistant",
+        content: replyText,
+      };
+
+      setMessages((prev) => [...prev, assistantMessage]);
+
+      setSessions((prev) =>
+        prev.map((s) =>
+          s.id === sessionId
+            ? {
+                ...s,
+                messages: [...(s.messages || []), assistantMessage],
+              }
+            : s,
+        ),
+      );
 
       await api.post("/api/messages", {
         sessionId,
