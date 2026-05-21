@@ -1,9 +1,8 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { sendChatRequest } from "../services/chatApi";
 
 import api from "../services/api";
 
-const API_URL = import.meta.env.VITE_API_URL;
 const initialGreeting = {
   id: 1,
   role: "assistant",
@@ -14,9 +13,6 @@ export function useChatStore() {
   const [sessions, setSessions] = useState([]);
   const [messages, setMessages] = useState([]);
   const [currentSessionId, setCurrentSessionId] = useState(null);
-  const fileRef = useRef(null);
-  const [input, setInput] = useState("");
-  const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(false);
 
   // ========================
@@ -73,32 +69,6 @@ export function useChatStore() {
   }, [currentSessionId]);
 
   // ========================
-  //  CORE LOGIC
-  // ========================
-
-  const buildUserMessage = (text) => {
-    if (files.length === 0) {
-      return {
-        id: crypto.randomUUID(),
-        role: "user",
-        content: text,
-      };
-    }
-
-    return {
-      id: crypto.randomUUID(),
-      role: "user",
-      content: `${text}\n📎 ${files.map((f) => f.name).join(", ")}`,
-    };
-  };
-
-  const resetInputState = () => {
-    setInput("");
-    setFiles([]);
-    if (fileRef.current) fileRef.current.value = "";
-  };
-
-  // ========================
   //  ACTIONS UI
   // ========================
 
@@ -114,8 +84,6 @@ export function useChatStore() {
 
       setCurrentSessionId(newSession.id);
       setMessages([]);
-
-      resetInputState();
     } catch (err) {
       console.log("Failed to create session", err);
     }
@@ -132,73 +100,51 @@ export function useChatStore() {
       console.log("Failed to load messages", err);
       setMessages([]);
     }
-
-    resetInputState();
   };
 
   const getReferenceText = () => {
-    return input.trim() || lastAssistantText || lastUserText;
+    return lastAssistantText || lastUserText;
   };
 
-  const handleSend = async () => {
+  const handleSend = async ({ text, files = [] }) => {
     const hasFiles = files.length > 0;
 
-    const messageText = input.trim() || (!hasFiles ? getReferenceText() : "");
-
-    const displayText = input.trim() || "Uploaded file.";
+    const messageText = text.trim() || (!hasFiles ? getReferenceText() : "");
+    const displayText = text.trim() || "Uploaded file.";
 
     if (!messageText && !hasFiles) return;
 
     let sessionId = currentSessionId;
 
     try {
-      // =========================
-      // CREATE SESSION IF NEEDED
-      // =========================
-
       if (!sessionId) {
         const res = await api.post("/api/sessions", {
           title: displayText.slice(0, 30),
         });
 
         const newSession = res.data;
-
         sessionId = newSession.id;
 
         setSessions((prev) => [newSession, ...prev]);
-
         setCurrentSessionId(sessionId);
       }
 
-      // =========================
-      // USER MESSAGE UI
-      // =========================
-
-      const userMessage = {
-        id: crypto.randomUUID(),
-        role: "user",
-        content: displayText,
-      };
-
-      setMessages((prev) => [...prev, userMessage]);
-
-      resetInputState();
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          role: "user",
+          content: displayText,
+        },
+      ]);
 
       setLoading(true);
-
-      // =========================
-      // SAVE USER MESSAGE
-      // =========================
 
       await api.post("/api/messages", {
         sessionId,
         role: "user",
         content: displayText,
       });
-
-      // =========================
-      // AI REQUEST
-      // =========================
 
       const data = await sendChatRequest({
         message: messageText,
@@ -208,21 +154,14 @@ export function useChatStore() {
 
       const replyText = data.reply;
 
-      // =========================
-      // ASSISTANT UI MESSAGE
-      // =========================
-
-      const assistantMessage = {
-        id: crypto.randomUUID(),
-        role: "assistant",
-        content: replyText,
-      };
-
-      setMessages((prev) => [...prev, assistantMessage]);
-
-      // =========================
-      // SAVE ASSISTANT MESSAGE
-      // =========================
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          role: "assistant",
+          content: replyText,
+        },
+      ]);
 
       await api.post("/api/messages", {
         sessionId,
@@ -231,7 +170,6 @@ export function useChatStore() {
       });
     } catch (err) {
       console.log("Send Error:", err);
-
       setMessages((prev) => [
         ...prev,
         {
@@ -244,40 +182,10 @@ export function useChatStore() {
       setLoading(false);
     }
   };
-  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
-  const streamAssistantMessage = async (fullText) => {
-    const id = crypto.randomUUID();
-
-    let displayed = "";
-
-    setMessages((prev) => [...prev, { id, role: "assistant", content: "" }]);
-
-    const chunks = fullText.split(/(?<=[.!?])\s+/);
-
-    for (let i = 0; i < chunks.length; i++) {
-      displayed += (i === 0 ? "" : " ") + chunks[i];
-
-      setMessages((prev) =>
-        prev.map((m) => (m.id === id ? { ...m, content: displayed } : m)),
-      );
-
-      await sleep(250 + Math.random() * 200);
-    }
-  };
-
-  const handleEnter = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  };
 
   // ========================
   //  QUIZ
   // ========================
-
-  const GREETING_TEXT = initialGreeting.content;
 
   const lastAssistantText = useMemo(() => {
     for (let i = messages.length - 1; i >= 0; i--) {
@@ -307,6 +215,8 @@ export function useChatStore() {
   const [quizResult, setQuizResult] = useState(null);
 
   const handleGenerateQuiz = async ({
+    context = "",
+    files = [],
     questionCount = 10,
     optionCount = 3,
   } = {}) => {
@@ -314,12 +224,10 @@ export function useChatStore() {
     setQuizResult(null);
 
     try {
-      const hasFiles = files.length > 0;
-      const context = input.trim() || (!hasFiles ? getReferenceText() : "");
+      const finalContext = context.trim() || getReferenceText();
 
       const formData = new FormData();
-
-      formData.append("context", context);
+      formData.append("context", finalContext);
       formData.append("questionCount", String(questionCount));
       formData.append("optionCount", String(optionCount));
 
@@ -328,13 +236,7 @@ export function useChatStore() {
       });
 
       const res = await api.post("/api/quiz", formData);
-
-      const data = res.data;
-
-      console.log("QUIZ RESPONSE:", data);
-      console.log("QUIZ CONTEXT:", context);
-
-      const questions = data.quiz?.questions || [];
+      const questions = res.data.quiz?.questions || [];
 
       if (!questions.length) {
         throw new Error("Quiz returned empty questions");
@@ -351,11 +253,6 @@ export function useChatStore() {
       setQuizLoading(false);
     }
   };
-
-  const handleQuiz = () => {
-    handleGenerateQuiz();
-  };
-
   const clearQuiz = () => {
     setQuiz(null);
   };
@@ -414,21 +311,14 @@ export function useChatStore() {
   return {
     // state
     messages,
-    input,
-    files,
     loading,
     sessions,
     currentSessionId,
 
     // setters
-    setInput,
-    setFiles,
     setSessions,
     setMessages,
     setCurrentSessionId,
-
-    // refs
-    fileRef,
 
     //  quiz
     quiz,
@@ -444,7 +334,5 @@ export function useChatStore() {
     handleSend,
     handleNewChat,
     loadSession,
-    handleQuiz,
-    handleEnter,
   };
 }

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Copy, Check } from "lucide-react";
 
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
@@ -8,16 +8,16 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
 function MessageBubble({ msg }) {
+  const contentRef = useRef(null);
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
-    await navigator.clipboard.writeText(msg.content);
+    const text = contentRef.current?.innerText || "";
+    await navigator.clipboard.writeText(text);
 
     setCopied(true);
 
-    setTimeout(() => {
-      setCopied(false);
-    }, 2000);
+    setTimeout(() => setCopied(false), 2000);
   };
 
   const formattedContent = msg.content
@@ -31,6 +31,7 @@ function MessageBubble({ msg }) {
     <div className={`flex ${isUser ? "justify-end" : "justify-start"}`}>
       <div className="flex flex-col gap-2 max-w-[min(85%,46rem)]">
         <div
+          ref={contentRef}
           className={`rounded-[24px] border px-6 py-5 shadow-sm ${
             isUser
               ? "border-lime-300/40 bg-lime-400 text-zinc-950"

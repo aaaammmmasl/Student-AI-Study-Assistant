@@ -10,14 +10,37 @@ import QuizModal from "../components/quiz/QuizModal";
 
 function Chat() {
   const chat = useChatStore();
-  const bottomRef = useRef(null);
+
+  const draftRef = useRef({
+    text: "",
+    files: [],
+  });
+
+  const quizDraftRef = useRef({
+    text: "",
+    files: [],
+  });
 
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isQuizOpen, setIsQuizOpen] = useState(false);
 
-  const handleOpenQuiz = () => {
+  const handleDraftChange = (draft) => {
+    draftRef.current = draft;
+  };
+
+  const handleOpenQuiz = (draft) => {
+    quizDraftRef.current = draft || draftRef.current;
     setIsQuizOpen(true);
   };
+
+  const handleGenerateQuizFromDraft = (options) => {
+    return chat.handleGenerateQuiz({
+      ...options,
+      context: quizDraftRef.current.text,
+      files: quizDraftRef.current.files,
+    });
+  };
+
   useEffect(() => {
     const token = localStorage.getItem("token");
 
@@ -25,11 +48,9 @@ function Chat() {
       window.location.href = "/login";
     }
   }, []);
+
   // Auto scroll to bottom whenever messages change
 
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [chat.messages, chat.loading]);
   return (
     <div className="h-screen w-screen overflow-hidden bg-zinc-950 text-white">
       <div className="flex h-full w-full">
@@ -49,14 +70,17 @@ function Chat() {
               <ChatMessages messages={chat.messages} loading={chat.loading} />
 
               {/* auto scroll */}
-              <div ref={bottomRef} />
             </div>
           </div>
 
           {/* Input fixed*/}
           <div className="shrink-0 border-t border-white/10 bg-zinc-950/80 backdrop-blur">
             <div className="mx-auto w-full max-w-5xl px-4 py-4 sm:px-8">
-              <ChatInput {...chat} handleQuiz={handleOpenQuiz} />
+              <ChatInput
+                handleSend={chat.handleSend}
+                handleQuiz={handleOpenQuiz}
+                onDraftChange={handleDraftChange}
+              />
             </div>
           </div>
         </main>
@@ -69,7 +93,7 @@ function Chat() {
           }}
           quiz={chat.quiz?.questions}
           loading={chat.quizLoading}
-          handleGenerateQuiz={chat.handleGenerateQuiz}
+          handleGenerateQuiz={handleGenerateQuizFromDraft}
         />
       </div>
     </div>

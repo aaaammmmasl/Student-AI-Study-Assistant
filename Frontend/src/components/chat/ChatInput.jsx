@@ -1,15 +1,32 @@
+import { useEffect, useRef, useState } from "react";
 import { Send, Paperclip, Brain } from "lucide-react";
 
-function ChatInput({
-  input,
-  setInput,
-  files,
-  setFiles,
-  fileRef,
-  handleEnter,
-  handleSend,
-  handleQuiz,
-}) {
+function ChatInput({ handleSend, handleQuiz, onDraftChange }) {
+  const [input, setInput] = useState("");
+  const [files, setFiles] = useState([]);
+  const fileRef = useRef(null);
+
+  useEffect(() => {
+    onDraftChange?.({ text: input, files });
+  }, [input, files, onDraftChange]);
+
+  const submit = () => {
+     handleSend({ text: input, files });
+    setInput("");
+    setFiles([]);
+  };
+
+  const openQuiz = () => {
+    handleQuiz({ text: input, files });
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      submit();
+    }
+  };
+
   return (
     <div className="rounded-3xl border border-white/10 bg-zinc-900 p-4">
       {files.length > 0 && (
@@ -38,7 +55,7 @@ function ChatInput({
         rows={3}
         value={input}
         onChange={(e) => setInput(e.target.value)}
-        onKeyDown={handleEnter}
+        onKeyDown={handleKeyDown}
         placeholder="Ask StudyPilot anything..."
         className="w-full resize-none bg-transparent text-sm outline-none placeholder:text-zinc-500"
       />
@@ -68,7 +85,7 @@ function ChatInput({
           </button>
 
           <button
-            onClick={handleQuiz}
+            onClick={openQuiz}
             className="rounded-xl bg-zinc-800 p-3 hover:bg-zinc-700"
           >
             <Brain size={18} />
@@ -76,7 +93,7 @@ function ChatInput({
         </div>
 
         <button
-          onClick={handleSend}
+          onClick={submit}
           className="inline-flex items-center gap-2 rounded-2xl bg-lime-400 px-5 py-3 text-sm font-semibold text-black hover:bg-lime-300"
         >
           <Send size={16} />
